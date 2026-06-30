@@ -9,6 +9,7 @@ import com.hotel.exception.ValidationException;
 import com.hotel.model.Reservation;
 import com.hotel.model.ReservationStatus;
 import com.hotel.model.Room;
+import com.hotel.model.RoomStatus;
 import com.hotel.util.Validator;
 
 import java.math.BigDecimal;
@@ -37,11 +38,16 @@ public class ReservationService {
     }
 
     public Reservation addReservation(int guestId, int roomId, LocalDate checkIn, LocalDate checkOut,
-                                       int numGuests, ReservationStatus status, String notes) {
+            int numGuests, ReservationStatus status, String notes) {
         validateCoreFields(roomId, checkIn, checkOut, numGuests, status);
 
         Room room = roomDao.findById(roomId)
                 .orElseThrow(() -> new RecordNotFoundException("Selected room was not found."));
+
+        if (room.getStatus() == RoomStatus.MAINTENANCE) {
+            throw new ValidationException(
+                    "Room " + room.getRoomNumber() + " is currently in maintenance and cannot be booked.");
+        }
 
         if (reservationDao.hasOverlappingReservation(roomId, checkIn, checkOut, null)) {
             throw new ValidationException(
@@ -58,16 +64,28 @@ public class ReservationService {
         reservation.setNotes(notes == null ? "" : notes.trim());
         reservation.setTotalAmount(calculateTotal(room.getPricePerNight(), checkIn, checkOut));
 
-        return reservationDao.create(reservation);
+        Reservation created = reservationDao.create(reservation);
+        if (status == ReservationStatus.CHECKED_IN) {
+            room.setStatus(RoomStatus.OCCUPIED);
+            roomDao.update(room);
+        }
+        return created;
     }
 
     public void updateReservation(int reservationId, int roomId, LocalDate checkIn, LocalDate checkOut,
-                                   int numGuests, ReservationStatus status, String notes) {
+            int numGuests, ReservationStatus status, String notes) {
         validateCoreFields(roomId, checkIn, checkOut, numGuests, status);
 
         Reservation existing = getReservationOrThrow(reservationId);
+        int oldRoomId = existing.getRoomId();
+
         Room room = roomDao.findById(roomId)
                 .orElseThrow(() -> new RecordNotFoundException("Selected room was not found."));
+
+        if (oldRoomId != roomId && room.getStatus() == RoomStatus.MAINTENANCE) {
+            throw new ValidationException(
+                    "Room " + room.getRoomNumber() + " is currently in maintenance and cannot be booked.");
+        }
 
         if (reservationDao.hasOverlappingReservation(roomId, checkIn, checkOut, reservationId)) {
             throw new ValidationException(
@@ -83,9 +101,32 @@ public class ReservationService {
         existing.setTotalAmount(calculateTotal(room.getPricePerNight(), checkIn, checkOut));
 
         reservationDao.update(existing);
+
+        // Sync old room if room changed
+        if (oldRoomId != roomId) {
+            Room oldRoom = roomDao.findById(oldRoomId).orElse(null);
+            if (oldRoom != null && oldRoom.getStatus() == RoomStatus.OCCUPIED) {
+                oldRoom.setStatus(RoomStatus.AVAILABLE);
+                roomDao.update(oldRoom);
+            }
+        }
+
+        // Sync new room based on status
+        if (status == ReservationStatus.CHECKED_IN) {
+            room.setStatus(RoomStatus.OCCUPIED);
+            roomDao.update(room);
+        } else if (status == ReservationStatus.CHECKED_OUT || status == ReservationStatus.CANCELLED) {
+            if (room.getStatus() == RoomStatus.OCCUPIED) {
+                room.setStatus(RoomStatus.AVAILABLE);
+                roomDao.update(room);
+            }
+        }
     }
 
-    /** Customer-facing cancellation: sets status to CANCELLED rather than physically deleting. */
+    /**
+     * Customer-facing cancellation: sets status to CANCELLED rather than physically
+     * deleting.
+     */
     public void cancelReservation(int reservationId) {
         Reservation existing = getReservationOrThrow(reservationId);
         if (existing.getStatus() == ReservationStatus.CHECKED_OUT) {
@@ -93,6 +134,12 @@ public class ReservationService {
         }
         existing.setStatus(ReservationStatus.CANCELLED);
         reservationDao.update(existing);
+
+        Room room = roomDao.findById(existing.getRoomId()).orElse(null);
+        if (room != null && room.getStatus() == RoomStatus.OCCUPIED) {
+            room.setStatus(RoomStatus.AVAILABLE);
+            roomDao.update(room);
+        }
     }
 
     public void softDeleteReservation(int reservationId) {
@@ -106,7 +153,8 @@ public class ReservationService {
 
     public Reservation getReservationOrThrow(int reservationId) {
         return reservationDao.findById(reservationId)
-                .orElseThrow(() -> new RecordNotFoundException("Reservation with id " + reservationId + " was not found."));
+                .orElseThrow(
+                        () -> new RecordNotFoundException("Reservation with id " + reservationId + " was not found."));
     }
 
     public List<Reservation> getAllActiveReservations() {
@@ -139,7 +187,7 @@ public class ReservationService {
     }
 
     private void validateCoreFields(int roomId, LocalDate checkIn, LocalDate checkOut,
-                                     int numGuests, ReservationStatus status) {
+            int numGuests, ReservationStatus status) {
         Validator.requirePositive(roomId, "Room");
         Validator.validateDateRange(checkIn, checkOut);
         Validator.requirePositive(numGuests, "Number of guests");

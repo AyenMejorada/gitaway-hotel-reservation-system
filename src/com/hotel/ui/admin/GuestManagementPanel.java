@@ -115,7 +115,7 @@ public class GuestManagementPanel extends JPanel {
         }
     }
 
-    private void refreshCurrentView() {
+    public void refreshCurrentView() {
         if (viewingArchived) {
             loadArchivedGuests();
         } else {

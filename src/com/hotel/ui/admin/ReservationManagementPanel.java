@@ -123,7 +123,7 @@ public class ReservationManagementPanel extends JPanel {
         }
     }
 
-    private void refreshCurrentView() {
+    public void refreshCurrentView() {
         if (viewingArchived) {
             loadArchivedReservations();
         } else {

@@ -5,10 +5,12 @@ import com.hotel.model.Guest;
 import com.hotel.model.Reservation;
 import com.hotel.model.ReservationStatus;
 import com.hotel.model.Room;
+import com.hotel.model.RoomStatus;
 import com.hotel.service.GuestService;
 import com.hotel.service.ReservationService;
 import com.hotel.service.RoomService;
 import com.hotel.ui.common.UIUtils;
+import com.hotel.ui.common.DatePickerField;
 import com.hotel.util.Validator;
 
 import javax.swing.*;
@@ -20,8 +22,7 @@ import java.util.List;
 
 /**
  * Modal dialog used for both "Add Reservation" and "Edit Reservation" in
- * Reservation Management. Guest and Room are chosen from combo boxes
- * populated from the active (non-deleted) records in each table.
+ * Reservation Management.
  */
 public class ReservationFormDialog extends JDialog {
 
@@ -34,10 +35,10 @@ public class ReservationFormDialog extends JDialog {
     private final Reservation existingReservation; // null when adding
     private boolean saved = false;
 
-    private JComboBox<Guest> guestCombo;
+    private JTextField guestNameField; // null when editing
     private JComboBox<Room> roomCombo;
-    private JTextField checkInField;
-    private JTextField checkOutField;
+    private DatePickerField checkInPicker;
+    private DatePickerField checkOutPicker;
     private JTextField numGuestsField;
     private JComboBox<ReservationStatus> statusCombo;
     private JTextArea notesArea;
@@ -66,39 +67,68 @@ public class ReservationFormDialog extends JDialog {
         gbc.gridx = 0;
         int row = 0;
 
-        gbc.gridy = row++;
-        form.add(formLabel("Guest"), gbc);
-        guestCombo = new JComboBox<>();
-        gbc.gridy = row++;
-        form.add(guestCombo, gbc);
+        if (existingReservation == null) {
+            gbc.gridy = row++;
+            form.add(formLabel("Guest Name (First Last)"), gbc);
+            guestNameField = new JTextField();
+            guestNameField.setPreferredSize(new Dimension(0, 36));
+            guestNameField.setFont(UIUtils.FONT_REGULAR);
+            gbc.gridy = row++;
+            form.add(guestNameField, gbc);
+        }
 
         gbc.gridy = row++;
         form.add(formLabel("Room"), gbc);
         roomCombo = new JComboBox<>();
+        roomCombo.setPreferredSize(new Dimension(0, 36));
+        roomCombo.setFont(UIUtils.FONT_REGULAR);
+        roomCombo.addActionListener(e -> {
+            Room selectedRoom = (Room) roomCombo.getSelectedItem();
+            if (selectedRoom != null) {
+                numGuestsField.setText(String.valueOf(selectedRoom.getCapacity()));
+            }
+        });
         gbc.gridy = row++;
         form.add(roomCombo, gbc);
 
-        gbc.gridy = row++;
-        form.add(formLabel("Check-in Date (yyyy-MM-dd)"), gbc);
-        checkInField = new JTextField();
-        gbc.gridy = row++;
-        form.add(checkInField, gbc);
+        LocalDate initialCheckIn = existingReservation != null ? existingReservation.getCheckInDate() : null;
+        LocalDate initialCheckOut = existingReservation != null ? existingReservation.getCheckOutDate() : null;
 
         gbc.gridy = row++;
-        form.add(formLabel("Check-out Date (yyyy-MM-dd)"), gbc);
-        checkOutField = new JTextField();
+        form.add(formLabel("Check-in Date"), gbc);
+        checkInPicker = new DatePickerField();
+        checkInPicker.setDateValidator(date -> !date.isBefore(LocalDate.now()) || date.equals(initialCheckIn));
         gbc.gridy = row++;
-        form.add(checkOutField, gbc);
+        form.add(checkInPicker, gbc);
+
+        gbc.gridy = row++;
+        form.add(formLabel("Check-out Date"), gbc);
+        checkOutPicker = new DatePickerField();
+        checkOutPicker.setDateValidator(date -> !date.isBefore(LocalDate.now()) || date.equals(initialCheckOut));
+        gbc.gridy = row++;
+        form.add(checkOutPicker, gbc);
+
+        checkInPicker.addChangeListener(() -> {
+            LocalDate inDate = checkInPicker.getDate();
+            if (inDate != null) {
+                checkOutPicker.setDateValidator(date -> (!date.isBefore(LocalDate.now()) && date.isAfter(inDate)) || date.equals(initialCheckOut));
+            }
+        });
 
         gbc.gridy = row++;
         form.add(formLabel("Number of Guests"), gbc);
         numGuestsField = new JTextField();
+        numGuestsField.setPreferredSize(new Dimension(0, 36));
+        numGuestsField.setFont(UIUtils.FONT_REGULAR);
+        numGuestsField.setEditable(false);
         gbc.gridy = row++;
         form.add(numGuestsField, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Status"), gbc);
         statusCombo = new JComboBox<>(ReservationStatus.values());
+        statusCombo.setPreferredSize(new Dimension(0, 36));
+        statusCombo.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(statusCombo, gbc);
 
@@ -107,6 +137,7 @@ public class ReservationFormDialog extends JDialog {
         notesArea = new JTextArea(3, 20);
         notesArea.setLineWrap(true);
         notesArea.setWrapStyleWord(true);
+        notesArea.setFont(UIUtils.FONT_REGULAR);
         JScrollPane notesScroll = new JScrollPane(notesArea);
         gbc.gridy = row++;
         gbc.weighty = 1;
@@ -133,35 +164,33 @@ public class ReservationFormDialog extends JDialog {
 
     private void loadComboData() {
         try {
-            List<Guest> guests = guestService.getAllActiveGuests();
-            for (Guest g : guests) {
-                guestCombo.addItem(g);
-            }
             List<Room> rooms = roomService.getAllActiveRooms();
             for (Room r : rooms) {
+                if (r.getStatus() == RoomStatus.MAINTENANCE) {
+                    if (existingReservation == null || r.getRoomId() != existingReservation.getRoomId()) {
+                        continue;
+                    }
+                }
                 roomCombo.addItem(r);
             }
         } catch (HotelException ex) {
-            UIUtils.showError(this, "Failed to load guests/rooms: " + ex.getMessage());
+            UIUtils.showError(this, "Failed to load rooms: " + ex.getMessage());
         }
     }
 
     private void populateFields(Reservation reservation) {
-        selectComboById(guestCombo, reservation.getGuestId(), Guest.class);
-        selectComboById(roomCombo, reservation.getRoomId(), Room.class);
-        checkInField.setText(reservation.getCheckInDate().format(DATE_FORMAT));
-        checkOutField.setText(reservation.getCheckOutDate().format(DATE_FORMAT));
+        selectComboById(roomCombo, reservation.getRoomId());
+        checkInPicker.setDate(reservation.getCheckInDate());
+        checkOutPicker.setDate(reservation.getCheckOutDate());
         numGuestsField.setText(String.valueOf(reservation.getNumGuests()));
         statusCombo.setSelectedItem(reservation.getStatus());
         notesArea.setText(reservation.getNotes());
     }
 
-    @SuppressWarnings("unchecked")
-    private <T> void selectComboById(JComboBox<T> combo, int id, Class<T> type) {
+    private void selectComboById(JComboBox<Room> combo, int id) {
         for (int i = 0; i < combo.getItemCount(); i++) {
-            T item = combo.getItemAt(i);
-            int itemId = (item instanceof Guest) ? ((Guest) item).getGuestId() : ((Room) item).getRoomId();
-            if (itemId == id) {
+            Room item = combo.getItemAt(i);
+            if (item.getRoomId() == id) {
                 combo.setSelectedIndex(i);
                 return;
             }
@@ -170,19 +199,23 @@ public class ReservationFormDialog extends JDialog {
 
     private void handleSave() {
         try {
-            Guest selectedGuest = (Guest) guestCombo.getSelectedItem();
             Room selectedRoom = (Room) roomCombo.getSelectedItem();
-            Validator.requireNonNull(selectedGuest, "Guest");
             Validator.requireNonNull(selectedRoom, "Room");
 
-            LocalDate checkIn = parseDate(checkInField.getText(), "Check-in date");
-            LocalDate checkOut = parseDate(checkOutField.getText(), "Check-out date");
+            LocalDate checkIn = checkInPicker.getDate();
+            LocalDate checkOut = checkOutPicker.getDate();
+            Validator.requireNonNull(checkIn, "Check-in date");
+            Validator.requireNonNull(checkOut, "Check-out date");
+
             int numGuests = Validator.parseInt(numGuestsField.getText(), "Number of guests");
             ReservationStatus status = (ReservationStatus) statusCombo.getSelectedItem();
             String notes = notesArea.getText();
 
             if (existingReservation == null) {
-                reservationService.addReservation(selectedGuest.getGuestId(), selectedRoom.getRoomId(),
+                String guestName = guestNameField.getText();
+                Guest guest = findOrCreateGuestByName(guestName);
+
+                reservationService.addReservation(guest.getGuestId(), selectedRoom.getRoomId(),
                         checkIn, checkOut, numGuests, status, notes);
                 UIUtils.showSuccess(this, "Reservation added successfully.");
             } else {
@@ -197,14 +230,43 @@ public class ReservationFormDialog extends JDialog {
         }
     }
 
-    private LocalDate parseDate(String text, String fieldName) {
-        Validator.requireNonBlank(text, fieldName);
-        try {
-            return LocalDate.parse(text.trim(), DATE_FORMAT);
-        } catch (DateTimeParseException e) {
-            throw new com.hotel.exception.ValidationException(
-                    fieldName + " must be in yyyy-MM-dd format (e.g. 2026-07-15).");
+    private Guest findOrCreateGuestByName(String fullName) {
+        String name = fullName.trim();
+        Validator.requireNonBlank(name, "Guest Name");
+
+        String firstName = "";
+        String lastName = "";
+        int spaceIndex = name.indexOf(' ');
+        if (spaceIndex >= 0) {
+            firstName = name.substring(0, spaceIndex).trim();
+            lastName = name.substring(spaceIndex + 1).trim();
+        } else {
+            firstName = name;
+            lastName = "";
         }
+
+        if (firstName.isEmpty()) {
+            throw new com.hotel.exception.ValidationException("First name cannot be empty.");
+        }
+
+        List<Guest> activeGuests = guestService.getAllActiveGuests();
+        for (Guest g : activeGuests) {
+            if (g.getFirstName().equalsIgnoreCase(firstName) && g.getLastName().equalsIgnoreCase(lastName)) {
+                return g;
+            }
+        }
+
+        String placeholderEmail = "auto_" + firstName.toLowerCase() + "_" + (lastName.isEmpty() ? "" : lastName.toLowerCase() + "_") + System.currentTimeMillis() + "@example.com";
+        Guest newGuest = guestService.addGuest(
+                null,
+                firstName,
+                lastName,
+                placeholderEmail,
+                "0000000000",
+                "",
+                ""
+        );
+        return newGuest;
     }
 
     public boolean isSaved() {

@@ -121,7 +121,7 @@ public class BillingManagementPanel extends JPanel {
         }
     }
 
-    private void refreshCurrentView() {
+    public void refreshCurrentView() {
         if (viewingArchived) {
             loadArchivedBillings();
         } else {

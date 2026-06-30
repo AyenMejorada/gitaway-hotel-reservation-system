@@ -116,7 +116,7 @@ public class RoomManagementPanel extends JPanel {
         }
     }
 
-    private void refreshCurrentView() {
+    public void refreshCurrentView() {
         if (viewingArchived) {
             loadArchivedRooms();
         } else {

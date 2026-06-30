@@ -25,6 +25,10 @@ public class AdminMainFrame extends JFrame {
     private static final String CARD_BILLING = "BILLING";
 
     private DashboardPanel dashboardPanel;
+    private ReservationManagementPanel reservationPanel;
+    private RoomManagementPanel roomPanel;
+    private GuestManagementPanel guestPanel;
+    private BillingManagementPanel billingPanel;
     private JButton activeNavButton;
 
     public AdminMainFrame() {
@@ -136,11 +140,16 @@ public class AdminMainFrame extends JFrame {
         contentPanel.setBackground(UIUtils.BACKGROUND_COLOR);
 
         dashboardPanel = new DashboardPanel();
+        reservationPanel = new ReservationManagementPanel();
+        roomPanel = new RoomManagementPanel();
+        guestPanel = new GuestManagementPanel();
+        billingPanel = new BillingManagementPanel();
+
         contentPanel.add(dashboardPanel, CARD_DASHBOARD);
-        contentPanel.add(new ReservationManagementPanel(), CARD_RESERVATIONS);
-        contentPanel.add(new RoomManagementPanel(), CARD_ROOMS);
-        contentPanel.add(new GuestManagementPanel(), CARD_GUESTS);
-        contentPanel.add(new BillingManagementPanel(), CARD_BILLING);
+        contentPanel.add(reservationPanel, CARD_RESERVATIONS);
+        contentPanel.add(roomPanel, CARD_ROOMS);
+        contentPanel.add(guestPanel, CARD_GUESTS);
+        contentPanel.add(billingPanel, CARD_BILLING);
 
         return contentPanel;
     }
@@ -148,6 +157,14 @@ public class AdminMainFrame extends JFrame {
     private void showCard(String cardName) {
         if (cardName.equals(CARD_DASHBOARD) && dashboardPanel != null) {
             dashboardPanel.refreshStats();
+        } else if (cardName.equals(CARD_RESERVATIONS) && reservationPanel != null) {
+            reservationPanel.refreshCurrentView();
+        } else if (cardName.equals(CARD_ROOMS) && roomPanel != null) {
+            roomPanel.refreshCurrentView();
+        } else if (cardName.equals(CARD_GUESTS) && guestPanel != null) {
+            guestPanel.refreshCurrentView();
+        } else if (cardName.equals(CARD_BILLING) && billingPanel != null) {
+            billingPanel.refreshCurrentView();
         }
         cardLayout.show(contentPanel, cardName);
     }
