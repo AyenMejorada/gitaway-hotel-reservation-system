@@ -65,14 +65,10 @@ public class BillingManagementPanel extends JPanel {
         toggleArchiveButton = UIUtils.createStyledButton("View Archived", UIUtils.PRIMARY_COLOR);
         toggleArchiveButton.addActionListener(e -> toggleArchivedView());
 
-        JButton refreshButton = UIUtils.createStyledButton("Refresh", Color.GRAY);
-        refreshButton.addActionListener(e -> refreshCurrentView());
-
         buttonsRow.add(addButton);
         buttonsRow.add(editButton);
         buttonsRow.add(deleteButton);
         buttonsRow.add(toggleArchiveButton);
-        buttonsRow.add(refreshButton);
         headerRow.add(buttonsRow, BorderLayout.EAST);
 
         add(headerRow, BorderLayout.NORTH);

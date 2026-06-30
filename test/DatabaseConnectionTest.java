@@ -1,4 +1,4 @@
-package com.hotel.test;
+package test;
 
 import com.gitaway.database.DatabaseConnection;
 import com.hotel.db.ConnectionFactory;

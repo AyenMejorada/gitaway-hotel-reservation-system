@@ -13,7 +13,7 @@ public class DatabaseConnection {
     // Database information
     private static final String URL = "jdbc:mysql://localhost:3306/hotel_reservation_db";
     private static final String USERNAME = "root";
-    private static final String PASSWORD = "@Ianpogi08";
+    private static final String PASSWORD = "petmaluserver";
 
     private static boolean initialized = false;
 
@@ -45,12 +45,13 @@ public class DatabaseConnection {
             // Connect to server (no DB name in URL)
             String serverUrl = "jdbc:mysql://localhost:3306/?useSSL=false&allowPublicKeyRetrieval=true";
             conn = DriverManager.getConnection(serverUrl, USERNAME, PASSWORD);
-            
+
             // Create database if not exists
             try (Statement stmt = conn.createStatement()) {
-                stmt.executeUpdate("CREATE DATABASE IF NOT EXISTS hotel_reservation_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+                stmt.executeUpdate(
+                        "CREATE DATABASE IF NOT EXISTS hotel_reservation_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             }
-            
+
             // Switch to the database and check if tables exist
             try (Statement stmt = conn.createStatement()) {
                 stmt.executeUpdate("USE hotel_reservation_db");
@@ -61,7 +62,7 @@ public class DatabaseConnection {
                         tablesExist = true;
                     }
                 }
-                
+
                 if (!tablesExist) {
                     System.out.println("Database tables not found. Initializing schema...");
                     executeSqlScript(stmt, "schema.sql");
@@ -75,7 +76,8 @@ public class DatabaseConnection {
             if (conn != null) {
                 try {
                     conn.close();
-                } catch (SQLException ignored) {}
+                } catch (SQLException ignored) {
+                }
             }
         }
     }
@@ -86,7 +88,7 @@ public class DatabaseConnection {
             System.out.println("Schema file not found at " + file.getAbsolutePath());
             return;
         }
-        
+
         StringBuilder sb = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
             String line;
@@ -97,7 +99,7 @@ public class DatabaseConnection {
                 sb.append(line).append("\n");
             }
         }
-        
+
         String[] statements = sb.toString().split(";");
         for (String sql : statements) {
             String trimmed = sql.trim();
