@@ -1,10 +1,11 @@
 package com.hotel;
 
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+
 import com.hotel.db.ConnectionFactory;
 import com.hotel.ui.login.LoginFrame;
-
-import javax.swing.*;
-import java.awt.*;
 
 /**
  * Application entry point. This is the single file that unites every

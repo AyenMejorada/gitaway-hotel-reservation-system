@@ -19,12 +19,8 @@ public class CustomerMainFrame extends JFrame {
 
     private static final String CARD_MAKE = "MAKE";
     private static final String CARD_VIEW = "VIEW";
-    private static final String CARD_UPDATE = "UPDATE";
-    private static final String CARD_CANCEL = "CANCEL";
 
     private ViewReservationPanel viewPanel;
-    private UpdateReservationPanel updatePanel;
-    private CancelReservationPanel cancelPanel;
     private JButton activeNavButton;
 
     public CustomerMainFrame() {
@@ -68,9 +64,7 @@ public class CustomerMainFrame extends JFrame {
         sidebar.add(welcome);
 
         sidebar.add(createNavButton("Make Reservation", CARD_MAKE, true));
-        sidebar.add(createNavButton("View Reservations", CARD_VIEW, false));
-        sidebar.add(createNavButton("Update Reservation", CARD_UPDATE, false));
-        sidebar.add(createNavButton("Cancel Reservation", CARD_CANCEL, false));
+        sidebar.add(createNavButton("My Reservations", CARD_VIEW, false));
 
         sidebar.add(Box.createVerticalGlue());
 
@@ -135,13 +129,9 @@ public class CustomerMainFrame extends JFrame {
 
         MakeReservationPanel makePanel = new MakeReservationPanel();
         viewPanel = new ViewReservationPanel();
-        updatePanel = new UpdateReservationPanel();
-        cancelPanel = new CancelReservationPanel();
 
         contentPanel.add(makePanel, CARD_MAKE);
         contentPanel.add(viewPanel, CARD_VIEW);
-        contentPanel.add(updatePanel, CARD_UPDATE);
-        contentPanel.add(cancelPanel, CARD_CANCEL);
 
         return contentPanel;
     }
@@ -149,19 +139,8 @@ public class CustomerMainFrame extends JFrame {
     private void showCard(String cardName) {
         // Refresh data whenever a reservation-related tab is opened so the
         // customer always sees up-to-date information.
-        switch (cardName) {
-            case CARD_VIEW:
-                viewPanel.refresh();
-                break;
-            case CARD_UPDATE:
-                updatePanel.refresh();
-                break;
-            case CARD_CANCEL:
-                cancelPanel.refresh();
-                break;
-            default:
-                // no refresh needed
-                break;
+        if (CARD_VIEW.equals(cardName)) {
+            viewPanel.refresh();
         }
         cardLayout.show(contentPanel, cardName);
     }

@@ -29,7 +29,7 @@ public class RoomService {
     }
 
     public Room addRoom(String roomNumber, RoomType type, BigDecimal pricePerNight,
-                         RoomStatus status, int capacity, String description) {
+            RoomStatus status, int capacity, String description) {
         validateRoomFields(roomNumber, type, pricePerNight, status, capacity);
         if (roomDao.existsByRoomNumber(roomNumber.trim(), null)) {
             throw new ValidationException("Room number '" + roomNumber + "' already exists.");
@@ -40,7 +40,7 @@ public class RoomService {
     }
 
     public void updateRoom(int roomId, String roomNumber, RoomType type, BigDecimal pricePerNight,
-                            RoomStatus status, int capacity, String description) {
+            RoomStatus status, int capacity, String description) {
         validateRoomFields(roomNumber, type, pricePerNight, status, capacity);
         Room existing = getRoomOrThrow(roomId);
         if (roomDao.existsByRoomNumber(roomNumber.trim(), roomId)) {
@@ -81,8 +81,18 @@ public class RoomService {
         return roomDao.countActiveRooms();
     }
 
+    /**
+     * Counts active (non-archived) rooms matching the given status,
+     * e.g. RoomStatus.OCCUPIED or RoomStatus.AVAILABLE.
+     */
+    public long countByStatus(RoomStatus status) {
+        return getAllActiveRooms().stream()
+                .filter(r -> r.getStatus() == status)
+                .count();
+    }
+
     private void validateRoomFields(String roomNumber, RoomType type, BigDecimal pricePerNight,
-                                     RoomStatus status, int capacity) {
+            RoomStatus status, int capacity) {
         Validator.requireNonBlank(roomNumber, "Room number");
         Validator.requireMaxLength(roomNumber, 10, "Room number");
         Validator.requireNonNull(type, "Room type");
