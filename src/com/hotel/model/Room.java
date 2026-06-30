@@ -114,6 +114,35 @@ public class Room {
         this.updatedAt = updatedAt;
     }
 
+    // Display-only fields populated by join queries
+    private String currentGuest;
+    private java.time.LocalDate checkInDate;
+    private java.time.LocalDate checkOutDate;
+
+    public String getCurrentGuest() {
+        return currentGuest;
+    }
+
+    public void setCurrentGuest(String currentGuest) {
+        this.currentGuest = currentGuest;
+    }
+
+    public java.time.LocalDate getCheckInDate() {
+        return checkInDate;
+    }
+
+    public void setCheckInDate(java.time.LocalDate checkInDate) {
+        this.checkInDate = checkInDate;
+    }
+
+    public java.time.LocalDate getCheckOutDate() {
+        return checkOutDate;
+    }
+
+    public void setCheckOutDate(java.time.LocalDate checkOutDate) {
+        this.checkOutDate = checkOutDate;
+    }
+
     @Override
     public String toString() {
         return "Room " + roomNumber + " (" + roomType + ")";

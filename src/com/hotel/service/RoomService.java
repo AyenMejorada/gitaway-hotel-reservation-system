@@ -73,6 +73,10 @@ public class RoomService {
         return roomDao.findAllActive();
     }
 
+    public List<Room> getAllActiveRoomsWithOccupancy() {
+        return roomDao.findAllActiveWithOccupancy();
+    }
+
     public List<Room> getAllArchivedRooms() {
         return roomDao.findAllArchived();
     }

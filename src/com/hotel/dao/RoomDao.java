@@ -31,4 +31,6 @@ public interface RoomDao {
     boolean existsByRoomNumber(String roomNumber, Integer excludingRoomId);
 
     long countActiveRooms();
+
+    List<Room> findAllActiveWithOccupancy();
 }

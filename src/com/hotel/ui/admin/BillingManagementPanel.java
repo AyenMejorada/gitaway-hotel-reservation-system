@@ -2,11 +2,14 @@ package com.hotel.ui.admin;
 
 import com.hotel.model.Billing;
 import com.hotel.service.BillingService;
+import com.hotel.ui.common.PlaceholderTextField;
 import com.hotel.ui.common.ReadOnlyTableModel;
 import com.hotel.ui.common.UIUtils;
 
 import javax.swing.*;
+import javax.swing.border.LineBorder;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -23,6 +26,9 @@ public class BillingManagementPanel extends JPanel {
     private boolean viewingArchived = false;
     private JButton toggleArchiveButton;
     private JLabel titleLabel;
+    private PlaceholderTextField searchField;
+
+    private List<Billing> allBillings = new ArrayList<>();
 
     private static final String[] COLUMNS = {
             "Bill ID", "Reservation ID", "Guest", "Room", "Room Charges", "Additional",
@@ -71,10 +77,54 @@ public class BillingManagementPanel extends JPanel {
         buttonsRow.add(toggleArchiveButton);
         headerRow.add(buttonsRow, BorderLayout.EAST);
 
-        add(headerRow, BorderLayout.NORTH);
+        // Search Bar Panel
+        JPanel searchPanel = new JPanel(new BorderLayout(8, 0));
+        searchPanel.setOpaque(false);
+        searchPanel.setBorder(BorderFactory.createEmptyBorder(12, 0, 12, 0));
+        JLabel searchLbl = new JLabel("Search:");
+        searchLbl.setFont(UIUtils.FONT_BOLD);
+        searchField = new PlaceholderTextField("Search by Bill ID, Guest Name, or Reservation ID...");
+        searchField.setPreferredSize(new Dimension(0, 36));
+        searchField.setFont(UIUtils.FONT_REGULAR);
+        searchField.setBorder(BorderFactory.createCompoundBorder(
+                new LineBorder(new Color(200, 200, 200), 1, true),
+                BorderFactory.createEmptyBorder(0, 10, 0, 10)
+        ));
+        searchField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { applyFilterAndSearch(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { applyFilterAndSearch(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { applyFilterAndSearch(); }
+        });
+        searchPanel.add(searchLbl, BorderLayout.WEST);
+        searchPanel.add(searchField, BorderLayout.CENTER);
+
+        JPanel northContainer = new JPanel();
+        northContainer.setLayout(new BoxLayout(northContainer, BoxLayout.Y_AXIS));
+        northContainer.setOpaque(false);
+        northContainer.add(headerRow);
+        northContainer.add(searchPanel);
+
+        add(northContainer, BorderLayout.NORTH);
 
         tableModel = new ReadOnlyTableModel(COLUMNS, 0);
-        table = new JTable(tableModel);
+        table = new JTable(tableModel) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (getRowCount() == 0) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(Color.GRAY);
+                    g2.setFont(UIUtils.FONT_HEADER);
+                    String text = "No matching records found.";
+                    FontMetrics fm = g2.getFontMetrics();
+                    int x = (getWidth() - fm.stringWidth(text)) / 2;
+                    int y = getHeight() / 2;
+                    g2.drawString(text, x, y);
+                    g2.dispose();
+                }
+            }
+        };
         UIUtils.styleTable(table);
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(BorderFactory.createEmptyBorder(16, 0, 0, 0));
@@ -83,16 +133,44 @@ public class BillingManagementPanel extends JPanel {
 
     private void loadActiveBillings() {
         UIUtils.runSafely(this, () -> {
-            List<Billing> billings = billingService.getAllActiveBillings();
-            populateTable(billings);
+            allBillings = billingService.getAllActiveBillings();
+            applyFilterAndSearch();
         });
     }
 
     private void loadArchivedBillings() {
         UIUtils.runSafely(this, () -> {
-            List<Billing> billings = billingService.getAllArchivedBillings();
-            populateTable(billings);
+            allBillings = billingService.getAllArchivedBillings();
+            applyFilterAndSearch();
         });
+    }
+
+    private void applyFilterAndSearch() {
+        String query = searchField.getText().trim().toLowerCase();
+        List<Billing> filtered = new ArrayList<>();
+
+        for (Billing b : allBillings) {
+            boolean keep = true;
+            if (!query.isEmpty()) {
+                String billIdStr = String.valueOf(b.getBillId());
+                String resIdStr = String.valueOf(b.getReservationId());
+                String guestName = b.getGuestName() == null ? "" : b.getGuestName().toLowerCase();
+
+                if (!billIdStr.contains(query)
+                        && !resIdStr.contains(query)
+                        && !guestName.contains(query)) {
+                    keep = false;
+                }
+            }
+            if (keep) {
+                filtered.add(b);
+            }
+        }
+
+        // Sort by Bill ID Ascending
+        filtered.sort(java.util.Comparator.comparingInt(Billing::getBillId));
+
+        populateTable(filtered);
     }
 
     private void populateTable(List<Billing> billings) {
@@ -112,6 +190,7 @@ public class BillingManagementPanel extends JPanel {
                     b.getPaymentMethod()
             });
         }
+        UIUtils.formatTableColumns(table);
     }
 
     private void toggleArchivedView() {
@@ -197,13 +276,11 @@ public class BillingManagementPanel extends JPanel {
     }
 
     public void showBillForReservation(int reservationId) {
-        // First load active billings to make sure table is up to date
         loadActiveBillings();
 
-        // Search for existing bill
         boolean found = false;
         for (int i = 0; i < table.getRowCount(); i++) {
-            Object val = tableModel.getValueAt(i, 1); // column 1 is "Reservation ID"
+            Object val = tableModel.getValueAt(i, 1);
             if (val instanceof Integer && (Integer) val == reservationId) {
                 table.setRowSelectionInterval(i, i);
                 table.scrollRectToVisible(table.getCellRect(i, 0, true));
@@ -213,7 +290,6 @@ public class BillingManagementPanel extends JPanel {
         }
 
         if (!found) {
-            // Ask user if they want to create a new bill
             int choice = JOptionPane.showConfirmDialog(this,
                     "No billing record found for Reservation #" + reservationId + ".\nWould you like to create a new bill now?",
                     "Create Bill", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
@@ -224,7 +300,6 @@ public class BillingManagementPanel extends JPanel {
                 dialog.setVisible(true);
                 if (dialog.isSaved()) {
                     loadActiveBillings();
-                    // Try to highlight it now
                     for (int i = 0; i < table.getRowCount(); i++) {
                         Object val = tableModel.getValueAt(i, 1);
                         if (val instanceof Integer && (Integer) val == reservationId) {

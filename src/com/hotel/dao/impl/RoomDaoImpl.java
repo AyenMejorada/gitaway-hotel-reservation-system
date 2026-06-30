@@ -163,6 +163,43 @@ public class RoomDaoImpl implements RoomDao {
         }
     }
 
+    @Override
+    public List<Room> findAllActiveWithOccupancy() {
+        String sql = "SELECT r.*, "
+                + "CONCAT(g.first_name, ' ', g.last_name) AS current_guest, "
+                + "res.check_in_date, "
+                + "res.check_out_date "
+                + "FROM rooms r "
+                + "LEFT JOIN reservations res ON r.room_id = res.room_id "
+                + "    AND res.is_deleted = 0 "
+                + "    AND res.status IN ('CONFIRMED', 'CHECKED_IN') "
+                + "    AND (CURRENT_DATE >= res.check_in_date AND CURRENT_DATE <= res.check_out_date) "
+                + "LEFT JOIN guests g ON res.guest_id = g.guest_id "
+                + "WHERE r.is_deleted = 0 "
+                + "ORDER BY r.room_number";
+        List<Room> rooms = new ArrayList<>();
+        try (Connection conn = ConnectionFactory.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Room r = mapRow(rs);
+                r.setCurrentGuest(rs.getString("current_guest"));
+                java.sql.Date inDate = rs.getDate("check_in_date");
+                if (inDate != null) {
+                    r.setCheckInDate(inDate.toLocalDate());
+                }
+                java.sql.Date outDate = rs.getDate("check_out_date");
+                if (outDate != null) {
+                    r.setCheckOutDate(outDate.toLocalDate());
+                }
+                rooms.add(r);
+            }
+            return rooms;
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to load rooms with occupancy details.", e);
+        }
+    }
+
     private Room mapRow(ResultSet rs) throws SQLException {
         Room r = new Room();
         r.setRoomId(rs.getInt("room_id"));

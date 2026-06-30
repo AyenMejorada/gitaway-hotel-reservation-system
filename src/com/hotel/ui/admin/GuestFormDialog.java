@@ -4,6 +4,7 @@ import com.hotel.exception.HotelException;
 import com.hotel.model.Guest;
 import com.hotel.service.GuestService;
 import com.hotel.ui.common.UIUtils;
+import com.hotel.util.Validator;
 
 import javax.swing.*;
 import java.awt.*;
@@ -34,7 +35,7 @@ public class GuestFormDialog extends JDialog {
     }
 
     private void initComponents() {
-        setSize(420, 600);
+        setSize(420, 620);
         setLocationRelativeTo(getOwner());
         setResizable(false);
 
@@ -49,36 +50,48 @@ public class GuestFormDialog extends JDialog {
         gbc.gridy = row++;
         form.add(formLabel("First Name"), gbc);
         firstNameField = new JTextField();
+        firstNameField.setPreferredSize(new Dimension(0, 36));
+        firstNameField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(firstNameField, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Last Name"), gbc);
         lastNameField = new JTextField();
+        lastNameField.setPreferredSize(new Dimension(0, 36));
+        lastNameField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(lastNameField, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Email"), gbc);
         emailField = new JTextField();
+        emailField.setPreferredSize(new Dimension(0, 36));
+        emailField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(emailField, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Phone Number"), gbc);
         phoneField = new JTextField();
+        phoneField.setPreferredSize(new Dimension(0, 36));
+        phoneField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(phoneField, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Address"), gbc);
         addressField = new JTextField();
+        addressField.setPreferredSize(new Dimension(0, 36));
+        addressField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(addressField, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("ID Number (optional)"), gbc);
         idNumberField = new JTextField();
+        idNumberField.setPreferredSize(new Dimension(0, 36));
+        idNumberField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(idNumberField, gbc);
 
@@ -111,12 +124,18 @@ public class GuestFormDialog extends JDialog {
 
     private void handleSave() {
         try {
-            String firstName = firstNameField.getText();
-            String lastName = lastNameField.getText();
-            String email = emailField.getText();
-            String phone = phoneField.getText();
-            String address = addressField.getText();
-            String idNumber = idNumberField.getText();
+            String firstName = firstNameField.getText().trim();
+            String lastName = lastNameField.getText().trim();
+            String email = emailField.getText().trim();
+            String phone = phoneField.getText().trim();
+            String address = addressField.getText().trim();
+            String idNumber = idNumberField.getText().trim();
+
+            Validator.requireNonBlank(firstName, "First Name");
+            Validator.requireNonBlank(lastName, "Last Name");
+            Validator.validateEmail(email);
+            Validator.validatePhone(phone);
+            Validator.requireNonBlank(address, "Address");
 
             if (existingGuest == null) {
                 guestService.addGuest(null, firstName, lastName, email, phone, address, idNumber);

@@ -20,13 +20,11 @@ public class AdminMainFrame extends JFrame {
 
     static final String CARD_DASHBOARD = "DASHBOARD";
     static final String CARD_RESERVATIONS = "RESERVATIONS";
-    static final String CARD_ROOMS = "ROOMS";
     static final String CARD_GUESTS = "GUESTS";
     static final String CARD_BILLING = "BILLING";
 
     private DashboardPanel dashboardPanel;
     private ReservationManagementPanel reservationPanel;
-    private RoomManagementPanel roomPanel;
     private GuestManagementPanel guestPanel;
     private BillingManagementPanel billingManagementPanel;
     private JButton activeNavButton;
@@ -75,9 +73,8 @@ public class AdminMainFrame extends JFrame {
 
         sidebar.add(createNavButton("Dashboard", CARD_DASHBOARD, true));
         sidebar.add(createNavButton("Reservation Management", CARD_RESERVATIONS, false));
-        sidebar.add(createNavButton("Room Management", CARD_ROOMS, false));
         sidebar.add(createNavButton("Guest Management", CARD_GUESTS, false));
-        sidebar.add(createNavButton("Billing", CARD_BILLING, false));
+        sidebar.add(createNavButton("Billing & Payments", CARD_BILLING, false));
 
         sidebar.add(Box.createVerticalGlue());
 
@@ -144,13 +141,11 @@ public class AdminMainFrame extends JFrame {
 
         dashboardPanel = new DashboardPanel();
         reservationPanel = new ReservationManagementPanel();
-        roomPanel = new RoomManagementPanel();
         guestPanel = new GuestManagementPanel();
         billingManagementPanel = new BillingManagementPanel();
 
         contentPanel.add(dashboardPanel, CARD_DASHBOARD);
         contentPanel.add(reservationPanel, CARD_RESERVATIONS);
-        contentPanel.add(roomPanel, CARD_ROOMS);
         contentPanel.add(guestPanel, CARD_GUESTS);
         contentPanel.add(billingManagementPanel, CARD_BILLING);
 
@@ -159,11 +154,9 @@ public class AdminMainFrame extends JFrame {
 
     private void showCard(String cardName) {
         if (cardName.equals(CARD_DASHBOARD) && dashboardPanel != null) {
-            dashboardPanel.refreshStats();
+            dashboardPanel.refreshCurrentView();
         } else if (cardName.equals(CARD_RESERVATIONS) && reservationPanel != null) {
             reservationPanel.refreshCurrentView();
-        } else if (cardName.equals(CARD_ROOMS) && roomPanel != null) {
-            roomPanel.refreshCurrentView();
         } else if (cardName.equals(CARD_GUESTS) && guestPanel != null) {
             guestPanel.refreshCurrentView();
         } else if (cardName.equals(CARD_BILLING) && billingManagementPanel != null) {

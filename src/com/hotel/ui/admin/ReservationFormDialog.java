@@ -44,6 +44,8 @@ public class ReservationFormDialog extends JDialog {
     private JComboBox<ReservationStatus> statusCombo;
     private JTextArea notesArea;
 
+    private List<Reservation> confirmedReservations = new java.util.ArrayList<>();
+
     public ReservationFormDialog(Window owner, Reservation existingReservation) {
         super(owner, existingReservation == null ? "Add Reservation" : "Edit Reservation",
                 ModalityType.APPLICATION_MODAL);
@@ -56,7 +58,7 @@ public class ReservationFormDialog extends JDialog {
     }
 
     private void initComponents() {
-        setSize(440, 700);
+        setSize(440, 720);
         setLocationRelativeTo(getOwner());
         setResizable(false);
 
@@ -88,6 +90,17 @@ public class ReservationFormDialog extends JDialog {
             if (selectedRoom != null) {
                 numGuestsField.setText(String.valueOf(selectedRoom.getCapacity()));
             }
+            updateConfirmedReservations();
+            
+            // Re-validate dates on room change
+            LocalDate inDate = checkInPicker.getDate();
+            if (inDate != null && !isDateAvailable(inDate)) {
+                checkInPicker.setDate(null);
+            }
+            LocalDate outDate = checkOutPicker.getDate();
+            if (outDate != null && !isDateAvailable(outDate)) {
+                checkOutPicker.setDate(null);
+            }
         });
         gbc.gridy = row++;
         form.add(roomCombo, gbc);
@@ -98,21 +111,30 @@ public class ReservationFormDialog extends JDialog {
         gbc.gridy = row++;
         form.add(formLabel("Check-in Date"), gbc);
         checkInPicker = new DatePickerField();
-        checkInPicker.setDateValidator(date -> !date.isBefore(LocalDate.now()) || date.equals(initialCheckIn));
+        checkInPicker.setDateValidator(date -> (date.equals(initialCheckIn) || !date.isBefore(LocalDate.now())) && isDateAvailable(date));
         gbc.gridy = row++;
         form.add(checkInPicker, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Check-out Date"), gbc);
         checkOutPicker = new DatePickerField();
-        checkOutPicker.setDateValidator(date -> !date.isBefore(LocalDate.now()) || date.equals(initialCheckOut));
+        checkOutPicker.setEnabled(false);
+        checkOutPicker.setDateValidator(date -> (date.equals(initialCheckOut) || !date.isBefore(LocalDate.now())) && isDateAvailable(date));
         gbc.gridy = row++;
         form.add(checkOutPicker, gbc);
 
         checkInPicker.addChangeListener(() -> {
             LocalDate inDate = checkInPicker.getDate();
             if (inDate != null) {
-                checkOutPicker.setDateValidator(date -> (!date.isBefore(LocalDate.now()) && date.isAfter(inDate)) || date.equals(initialCheckOut));
+                checkOutPicker.setEnabled(true);
+                checkOutPicker.setDateValidator(date -> (date.equals(initialCheckOut) || (!date.isBefore(LocalDate.now()) && date.isAfter(inDate))) && isDateAvailable(date));
+                LocalDate outDate = checkOutPicker.getDate();
+                if (outDate != null && !outDate.isAfter(inDate) && !outDate.equals(initialCheckOut)) {
+                    checkOutPicker.setDate(null);
+                }
+            } else {
+                checkOutPicker.setDate(null);
+                checkOutPicker.setEnabled(false);
             }
         });
 
@@ -163,6 +185,35 @@ public class ReservationFormDialog extends JDialog {
         return label;
     }
 
+    private void updateConfirmedReservations() {
+        Room selectedRoom = (Room) roomCombo.getSelectedItem();
+        if (selectedRoom == null) {
+            confirmedReservations = new java.util.ArrayList<>();
+        } else {
+            try {
+                confirmedReservations = reservationService.getConfirmedReservationsForRoom(selectedRoom.getRoomId());
+            } catch (Exception ex) {
+                confirmedReservations = new java.util.ArrayList<>();
+            }
+        }
+    }
+
+    private boolean isDateAvailable(LocalDate date) {
+        Room selectedRoom = (Room) roomCombo.getSelectedItem();
+        if (selectedRoom == null) {
+            return true;
+        }
+        for (Reservation res : confirmedReservations) {
+            if (existingReservation != null && res.getReservationId() == existingReservation.getReservationId()) {
+                continue;
+            }
+            if (!date.isBefore(res.getCheckInDate()) && date.isBefore(res.getCheckOutDate())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private void loadComboData() {
         try {
             List<Room> rooms = roomService.getAllActiveRooms();
@@ -174,6 +225,7 @@ public class ReservationFormDialog extends JDialog {
                 }
                 roomCombo.addItem(r);
             }
+            updateConfirmedReservations();
         } catch (HotelException ex) {
             UIUtils.showError(this, "Failed to load rooms: " + ex.getMessage());
         }
@@ -181,6 +233,7 @@ public class ReservationFormDialog extends JDialog {
 
     private void populateFields(Reservation reservation) {
         selectComboById(roomCombo, reservation.getRoomId());
+        updateConfirmedReservations();
         checkInPicker.setDate(reservation.getCheckInDate());
         checkOutPicker.setDate(reservation.getCheckOutDate());
         numGuestsField.setText(String.valueOf(reservation.getNumGuests()));
@@ -207,6 +260,7 @@ public class ReservationFormDialog extends JDialog {
             LocalDate checkOut = checkOutPicker.getDate();
             Validator.requireNonNull(checkIn, "Check-in date");
             Validator.requireNonNull(checkOut, "Check-out date");
+            Validator.validateDateRange(checkIn, checkOut);
 
             int numGuests = Validator.parseInt(numGuestsField.getText(), "Number of guests");
             ReservationStatus status = (ReservationStatus) statusCombo.getSelectedItem();

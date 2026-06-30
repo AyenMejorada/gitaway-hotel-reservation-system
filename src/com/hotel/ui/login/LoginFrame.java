@@ -162,6 +162,37 @@ public class LoginFrame extends JFrame {
         buttonPanel.add(exitButton);
 
         rightPanel.add(buttonPanel);
+        rightPanel.add(Box.createVerticalStrut(10));
+
+        // Sign Up button
+        JPanel signUpPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        signUpPanel.setBackground(Color.WHITE);
+        signUpPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
+        signUpPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JButton signUpButton = new JButton("Sign Up as New Guest");
+        signUpButton.setFont(new Font("Segoe UI", Font.BOLD | Font.ITALIC, 14));
+        signUpButton.setForeground(UIUtils.ACCENT_COLOR);
+        signUpButton.setContentAreaFilled(false);
+        signUpButton.setBorderPainted(false);
+        signUpButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        signUpButton.addActionListener(e -> handleSignUp());
+        signUpPanel.add(signUpButton);
+
+        rightPanel.add(signUpPanel);
+        rightPanel.add(Box.createVerticalStrut(10));
+
+        // Sample credentials helper text
+        JLabel lblHelp = new JLabel("<html><center>"
+                + "<hr width='100%' style='border-color:#F0F0F0;'>"
+                + "<font size='2' color='#888888'><b>Sample Guest Account</b><br>"
+                + "Username: guest &nbsp;&nbsp; Password: guest123<br><br>"
+                + "<b>Sample Admin Account</b><br>"
+                + "Username: admin &nbsp;&nbsp; Password: admin123</font>"
+                + "</center></html>");
+        lblHelp.setAlignmentX(Component.LEFT_ALIGNMENT);
+        lblHelp.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
+        rightPanel.add(lblHelp);
 
         add(leftPanel, BorderLayout.WEST);
         add(rightPanel, BorderLayout.CENTER);
@@ -201,6 +232,17 @@ public class LoginFrame extends JFrame {
                         + "The login form is now locked for this session.\n"
                         + "Please restart the application to try again.");
             }
+        }
+    }
+
+    private void handleSignUp() {
+        RegisterDialog dialog = new RegisterDialog(this);
+        dialog.setVisible(true);
+        if (dialog.isRegistrationSuccessful()) {
+            usernameField.setText(dialog.getRegisteredUsername());
+            passwordField.setText("");
+            passwordField.requestFocus();
+            statusLabel.setText(" ");
         }
     }
 

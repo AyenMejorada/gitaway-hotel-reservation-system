@@ -2,9 +2,12 @@ package com.hotel.service;
 
 import com.hotel.dao.UserDao;
 import com.hotel.dao.impl.UserDaoImpl;
+import com.hotel.dao.impl.GuestDaoImpl;
 import com.hotel.exception.AuthenticationException;
 import com.hotel.exception.ValidationException;
 import com.hotel.model.User;
+import com.hotel.model.UserRole;
+import com.hotel.model.Guest;
 import com.hotel.util.Validator;
 
 import java.util.HashMap;
@@ -78,6 +81,67 @@ public class AuthService {
         failedAttempts.remove(key);
         lockedAccounts.remove(key);
         return user;
+    }
+
+    /**
+     * Registers a new guest user and creates a corresponding guest profile.
+     */
+    public void register(String fullName, String contactNumber, String username, String password, String confirmPassword) {
+        Validator.requireNonBlank(fullName, "Full Name");
+        Validator.requireNonBlank(contactNumber, "Contact Number");
+        Validator.requireNonBlank(username, "Username");
+        Validator.requireNonBlank(password, "Password");
+        Validator.requireNonBlank(confirmPassword, "Confirm Password");
+
+        // Contact Number validation: only valid numeric input
+        if (!contactNumber.trim().matches("\\d+")) {
+            throw new ValidationException("Contact number must contain only numeric digits.");
+        }
+
+        if (!password.equals(confirmPassword)) {
+            throw new ValidationException("Password and Confirm Password do not match.");
+        }
+
+        String trimmedUser = username.trim();
+        if (userDao.findByUsername(trimmedUser).isPresent()) {
+            throw new ValidationException("Username is already taken.");
+        }
+
+        // Create User
+        User user = new User();
+        user.setUsername(trimmedUser);
+        user.setPassword(password);
+        user.setRole(UserRole.CUSTOMER);
+        user.setFullName(fullName.trim());
+        user.setEmail(trimmedUser.toLowerCase() + "@guest.local");
+        user.setActive(true);
+
+        User savedUser = userDao.create(user);
+
+        // Create Guest profile
+        String[] nameParts = splitName(fullName.trim());
+        Guest guest = new Guest();
+        guest.setUserId(savedUser.getUserId());
+        guest.setFirstName(nameParts[0]);
+        guest.setLastName(nameParts[1]);
+        guest.setEmail(savedUser.getEmail());
+        guest.setPhone(contactNumber.trim());
+        guest.setAddress("Not specified");
+        guest.setIdNumber("");
+
+        new GuestDaoImpl().create(guest);
+    }
+
+    private String[] splitName(String fullName) {
+        if (fullName == null || fullName.trim().isEmpty()) {
+            return new String[]{"Guest", "User"};
+        }
+        String trimmed = fullName.trim();
+        int spaceIdx = trimmed.indexOf(' ');
+        if (spaceIdx < 0) {
+            return new String[]{trimmed, "-"};
+        }
+        return new String[]{trimmed.substring(0, spaceIdx), trimmed.substring(spaceIdx + 1)};
     }
 
     private void registerFailedAttempt(String key) {

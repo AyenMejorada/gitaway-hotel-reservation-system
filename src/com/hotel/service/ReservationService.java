@@ -38,56 +38,143 @@ public class ReservationService {
         this.roomDao = roomDao;
     }
 
+    public BigDecimal getPriceForType(com.hotel.model.RoomType type) {
+        return roomDao.findAllActive().stream()
+                .filter(r -> r.getRoomType() == type)
+                .map(Room::getPricePerNight)
+                .findFirst()
+                .orElseGet(() -> {
+                    switch (type) {
+                        case SINGLE: return BigDecimal.valueOf(1500.00);
+                        case DOUBLE: return BigDecimal.valueOf(2500.00);
+                        case DELUXE: return BigDecimal.valueOf(4000.00);
+                        case SUITE: return BigDecimal.valueOf(7000.00);
+                        default: return BigDecimal.ZERO;
+                    }
+                });
+    }
+
+    public int getCapacityForType(com.hotel.model.RoomType type) {
+        return roomDao.findAllActive().stream()
+                .filter(r -> r.getRoomType() == type)
+                .map(Room::getCapacity)
+                .findFirst()
+                .orElseGet(() -> {
+                    switch (type) {
+                        case SINGLE: return 1;
+                        case DOUBLE: return 2;
+                        case DELUXE: return 3;
+                        case SUITE: return 4;
+                        default: return 0;
+                    }
+                });
+    }
+
     public Reservation addReservation(int guestId, int roomId, LocalDate checkIn, LocalDate checkOut,
             int numGuests, ReservationStatus status, String notes) {
-        validateCoreFields(roomId, checkIn, checkOut, numGuests, status);
-        Validator.validateNotInPast(checkIn, "Check-in date");
-
         Room room = roomDao.findById(roomId)
                 .orElseThrow(() -> new RecordNotFoundException("Selected room was not found."));
+        return addReservation(guestId, room.getRoomType(), roomId, checkIn, checkOut, numGuests, status, notes);
+    }
 
-        if (room.getStatus() == RoomStatus.MAINTENANCE) {
-            throw new ValidationException(
-                    "Room " + room.getRoomNumber() + " is currently in maintenance and cannot be booked.");
-        }
+    public Reservation addReservation(int guestId, com.hotel.model.RoomType roomType, int roomId, LocalDate checkIn, LocalDate checkOut,
+            int numGuests, ReservationStatus status, String notes) {
+        if (roomId > 0) {
+            validateCoreFields(roomId, checkIn, checkOut, numGuests, status);
+            Validator.validateNotInPast(checkIn, "Check-in date");
 
-        if (numGuests > room.getCapacity()) {
-            throw new ValidationException(
-                    "Number of guests exceeds the room's maximum capacity of " + room.getCapacity() + ".");
-        }
+            Room room = roomDao.findById(roomId)
+                    .orElseThrow(() -> new RecordNotFoundException("Selected room was not found."));
 
-        if (reservationDao.hasOverlappingReservation(roomId, checkIn, checkOut, null)) {
-            throw new ValidationException(
-                    "Room " + room.getRoomNumber() + " is already booked for an overlapping date range.");
-        }
-
-        Reservation reservation = new Reservation();
-        reservation.setGuestId(guestId);
-        reservation.setRoomId(roomId);
-        reservation.setCheckInDate(checkIn);
-        reservation.setCheckOutDate(checkOut);
-        reservation.setNumGuests(numGuests);
-        reservation.setStatus(status);
-        reservation.setNotes(notes == null ? "" : notes.trim());
-        reservation.setTotalAmount(calculateTotal(room.getPricePerNight(), checkIn, checkOut));
-
-        TransactionManager.begin();
-        try {
-            Reservation created = reservationDao.create(reservation);
-            if (status == ReservationStatus.CHECKED_IN) {
-                updateRoomStatus(roomId, RoomStatus.OCCUPIED);
+            if (room.getStatus() == RoomStatus.MAINTENANCE) {
+                throw new ValidationException(
+                        "Room " + room.getRoomNumber() + " is currently in maintenance and cannot be booked.");
             }
-            TransactionManager.commit();
-            return created;
-        } catch (Exception e) {
-            TransactionManager.rollback();
-            throw e;
+
+            if (numGuests > room.getCapacity()) {
+                throw new ValidationException(
+                        "Number of guests exceeds the room's maximum capacity of " + room.getCapacity() + ".");
+            }
+
+            if (reservationDao.hasOverlappingReservation(roomId, checkIn, checkOut, null)) {
+                throw new ValidationException(
+                        "Room " + room.getRoomNumber() + " is already booked for an overlapping date range.");
+            }
+
+            Reservation reservation = new Reservation();
+            reservation.setGuestId(guestId);
+            reservation.setRoomType(roomType);
+            reservation.setRoomId(roomId);
+            reservation.setCheckInDate(checkIn);
+            reservation.setCheckOutDate(checkOut);
+            reservation.setNumGuests(numGuests);
+            reservation.setStatus(status);
+            reservation.setNotes(notes == null ? "" : notes.trim());
+            reservation.setTotalAmount(calculateTotal(room.getPricePerNight(), checkIn, checkOut));
+
+            TransactionManager.begin();
+            try {
+                Reservation created = reservationDao.create(reservation);
+                if (status == ReservationStatus.CHECKED_IN) {
+                    updateRoomStatus(roomId, RoomStatus.OCCUPIED);
+                } else if (status == ReservationStatus.CONFIRMED) {
+                    updateRoomStatus(roomId, RoomStatus.RESERVED);
+                }
+                TransactionManager.commit();
+                return created;
+            } catch (Exception e) {
+                TransactionManager.rollback();
+                throw e;
+            }
+        } else {
+            Validator.validateDateRange(checkIn, checkOut);
+            Validator.requirePositive(numGuests, "Number of guests");
+            Validator.requireNonNull(status, "Reservation status");
+            Validator.validateNotInPast(checkIn, "Check-in date");
+
+            int maxCapacity = getCapacityForType(roomType);
+            if (numGuests > maxCapacity) {
+                throw new ValidationException(
+                        "Number of guests exceeds the room type's maximum capacity of " + maxCapacity + ".");
+            }
+
+            BigDecimal pricePerNight = getPriceForType(roomType);
+
+            Reservation reservation = new Reservation();
+            reservation.setGuestId(guestId);
+            reservation.setRoomType(roomType);
+            reservation.setRoomId(0);
+            reservation.setCheckInDate(checkIn);
+            reservation.setCheckOutDate(checkOut);
+            reservation.setNumGuests(numGuests);
+            reservation.setStatus(status);
+            reservation.setNotes(notes == null ? "" : notes.trim());
+            reservation.setTotalAmount(calculateTotal(pricePerNight, checkIn, checkOut));
+
+            TransactionManager.begin();
+            try {
+                Reservation created = reservationDao.create(reservation);
+                TransactionManager.commit();
+                return created;
+            } catch (Exception e) {
+                TransactionManager.rollback();
+                throw e;
+            }
         }
     }
 
     public void updateReservation(int reservationId, int roomId, LocalDate checkIn, LocalDate checkOut,
             int numGuests, ReservationStatus status, String notes) {
-        validateCoreFields(roomId, checkIn, checkOut, numGuests, status);
+        Reservation existing = getReservationOrThrow(reservationId);
+        com.hotel.model.RoomType roomType = existing.getRoomType();
+        updateReservation(reservationId, roomType, roomId, checkIn, checkOut, numGuests, status, notes);
+    }
+
+    public void updateReservation(int reservationId, com.hotel.model.RoomType roomType, int roomId, LocalDate checkIn, LocalDate checkOut,
+            int numGuests, ReservationStatus status, String notes) {
+        Validator.validateDateRange(checkIn, checkOut);
+        Validator.requirePositive(numGuests, "Number of guests");
+        Validator.requireNonNull(status, "Reservation status");
 
         Reservation existing = getReservationOrThrow(reservationId);
         int oldRoomId = existing.getRoomId();
@@ -98,56 +185,112 @@ public class ReservationService {
 
         validateStatusTransition(existing.getStatus(), status);
 
-        Room room = roomDao.findById(roomId)
-                .orElseThrow(() -> new RecordNotFoundException("Selected room was not found."));
+        BigDecimal pricePerNight;
+        if (roomId > 0) {
+            Room room = roomDao.findById(roomId)
+                    .orElseThrow(() -> new RecordNotFoundException("Selected room was not found."));
 
-        if (oldRoomId != roomId && room.getStatus() == RoomStatus.MAINTENANCE) {
-            throw new ValidationException(
-                    "Room " + room.getRoomNumber() + " is currently in maintenance and cannot be booked.");
-        }
+            if (oldRoomId != roomId && room.getStatus() == RoomStatus.MAINTENANCE) {
+                throw new ValidationException(
+                        "Room " + room.getRoomNumber() + " is currently in maintenance and cannot be booked.");
+            }
 
-        if (numGuests > room.getCapacity()) {
-            throw new ValidationException(
-                    "Number of guests exceeds the room's maximum capacity of " + room.getCapacity() + ".");
-        }
+            if (numGuests > room.getCapacity()) {
+                throw new ValidationException(
+                        "Number of guests exceeds the room's maximum capacity of " + room.getCapacity() + ".");
+            }
 
-        if (reservationDao.hasOverlappingReservation(roomId, checkIn, checkOut, reservationId)) {
-            throw new ValidationException(
-                    "Room " + room.getRoomNumber() + " is already booked for an overlapping date range.");
+            if (reservationDao.hasOverlappingReservation(roomId, checkIn, checkOut, reservationId)) {
+                throw new ValidationException(
+                        "Room " + room.getRoomNumber() + " is already booked for an overlapping date range.");
+            }
+            pricePerNight = room.getPricePerNight();
+        } else {
+            int maxCapacity = getCapacityForType(roomType);
+            if (numGuests > maxCapacity) {
+                throw new ValidationException(
+                        "Number of guests exceeds the room type's maximum capacity of " + maxCapacity + ".");
+            }
+            pricePerNight = getPriceForType(roomType);
         }
 
         TransactionManager.begin();
         try {
             ReservationStatus oldStatus = existing.getStatus();
 
+            existing.setRoomType(roomType);
             existing.setRoomId(roomId);
             existing.setCheckInDate(checkIn);
             existing.setCheckOutDate(checkOut);
             existing.setNumGuests(numGuests);
             existing.setStatus(status);
             existing.setNotes(notes == null ? "" : notes.trim());
-            existing.setTotalAmount(calculateTotal(room.getPricePerNight(), checkIn, checkOut));
+            existing.setTotalAmount(calculateTotal(pricePerNight, checkIn, checkOut));
 
             reservationDao.update(existing);
 
             // Sync room status
-            if (oldRoomId != roomId) {
-                if (oldStatus == ReservationStatus.CHECKED_IN) {
-                    updateRoomStatus(oldRoomId, RoomStatus.AVAILABLE);
-                }
-                if (status == ReservationStatus.CHECKED_IN) {
-                    updateRoomStatus(roomId, RoomStatus.OCCUPIED);
-                }
-            } else {
-                if (oldStatus != status) {
+            if (roomId > 0) {
+                if (oldRoomId != roomId) {
+                    if (oldRoomId > 0 && (oldStatus == ReservationStatus.CHECKED_IN || oldStatus == ReservationStatus.CONFIRMED)) {
+                        updateRoomStatus(oldRoomId, RoomStatus.AVAILABLE);
+                    }
                     if (status == ReservationStatus.CHECKED_IN) {
                         updateRoomStatus(roomId, RoomStatus.OCCUPIED);
-                    } else if (status == ReservationStatus.CHECKED_OUT || status == ReservationStatus.CANCELLED) {
-                        updateRoomStatus(roomId, RoomStatus.AVAILABLE);
+                    } else if (status == ReservationStatus.CONFIRMED) {
+                        updateRoomStatus(roomId, RoomStatus.RESERVED);
                     }
+                } else {
+                    if (oldStatus != status) {
+                        if (status == ReservationStatus.CHECKED_IN) {
+                            updateRoomStatus(roomId, RoomStatus.OCCUPIED);
+                        } else if (status == ReservationStatus.CONFIRMED) {
+                            updateRoomStatus(roomId, RoomStatus.RESERVED);
+                        } else if (status == ReservationStatus.CHECKED_OUT || status == ReservationStatus.CANCELLED) {
+                            updateRoomStatus(roomId, RoomStatus.AVAILABLE);
+                        }
+                    }
+                }
+            } else {
+                if (oldRoomId > 0 && (oldStatus == ReservationStatus.CHECKED_IN || oldStatus == ReservationStatus.CONFIRMED)) {
+                    updateRoomStatus(oldRoomId, RoomStatus.AVAILABLE);
                 }
             }
 
+            TransactionManager.commit();
+        } catch (Exception e) {
+            TransactionManager.rollback();
+            throw e;
+        }
+    }
+
+    public void assignRoomAndConfirm(int reservationId, int roomId) {
+        Reservation res = getReservationOrThrow(reservationId);
+        Room room = roomDao.findById(roomId)
+                .orElseThrow(() -> new RecordNotFoundException("Room not found."));
+
+        if (room.getRoomType() != res.getRoomType()) {
+            throw new ValidationException("Selected room type (" + room.getRoomType() + ") does not match reservation room type (" + res.getRoomType() + ").");
+        }
+
+        if (room.getStatus() == RoomStatus.MAINTENANCE) {
+            throw new ValidationException("Room " + room.getRoomNumber() + " is currently in maintenance.");
+        }
+
+        if (res.getNumGuests() > room.getCapacity()) {
+            throw new ValidationException("Number of guests exceeds room capacity of " + room.getCapacity() + ".");
+        }
+
+        if (reservationDao.hasOverlappingReservation(roomId, res.getCheckInDate(), res.getCheckOutDate(), reservationId)) {
+            throw new ValidationException("Room " + room.getRoomNumber() + " is already booked or occupied for the requested dates.");
+        }
+
+        TransactionManager.begin();
+        try {
+            res.setRoomId(roomId);
+            res.setStatus(ReservationStatus.CONFIRMED);
+            reservationDao.update(res);
+            updateRoomStatus(roomId, RoomStatus.RESERVED);
             TransactionManager.commit();
         } catch (Exception e) {
             TransactionManager.rollback();
@@ -171,7 +314,7 @@ public class ReservationService {
             existing.setStatus(ReservationStatus.CANCELLED);
             reservationDao.update(existing);
 
-            if (oldStatus == ReservationStatus.CHECKED_IN) {
+            if (oldStatus == ReservationStatus.CHECKED_IN || oldStatus == ReservationStatus.CONFIRMED) {
                 updateRoomStatus(roomId, RoomStatus.AVAILABLE);
             }
 
@@ -268,5 +411,27 @@ public class ReservationService {
         Validator.validateDateRange(checkIn, checkOut);
         Validator.requirePositive(numGuests, "Number of guests");
         Validator.requireNonNull(status, "Reservation status");
+    }
+
+    public boolean isRoomTypeAvailable(com.hotel.model.RoomType type, LocalDate checkIn, LocalDate checkOut) {
+        List<Room> typeRooms = roomDao.findAllActive().stream()
+                .filter(r -> r.getRoomType() == type && r.getStatus() != RoomStatus.MAINTENANCE)
+                .collect(java.util.stream.Collectors.toList());
+        if (typeRooms.isEmpty()) {
+            return false;
+        }
+        for (Room r : typeRooms) {
+            if (!reservationDao.hasOverlappingReservation(r.getRoomId(), checkIn, checkOut, null)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public List<Room> getAvailableRoomsOfType(com.hotel.model.RoomType type, LocalDate checkIn, LocalDate checkOut, Integer excludingReservationId) {
+        return roomDao.findAllActive().stream()
+                .filter(r -> r.getRoomType() == type && r.getStatus() != RoomStatus.MAINTENANCE)
+                .filter(r -> !reservationDao.hasOverlappingReservation(r.getRoomId(), checkIn, checkOut, excludingReservationId))
+                .collect(java.util.stream.Collectors.toList());
     }
 }

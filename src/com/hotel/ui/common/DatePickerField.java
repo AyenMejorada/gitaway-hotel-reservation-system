@@ -139,9 +139,18 @@ public class DatePickerField extends JPanel {
         calendarGrid.repaint();
     }
 
+    private String placeholder = "Select date...";
+
+    public void setPlaceholder(String placeholder) {
+        this.placeholder = placeholder;
+        if (selectedDate == null) {
+            displayField.setText(placeholder);
+        }
+    }
+
     public void setDate(LocalDate date) {
         this.selectedDate = date;
-        displayField.setText(date == null ? "Select date..." : date.format(DATE_FORMAT));
+        displayField.setText(date == null ? placeholder : date.format(DATE_FORMAT));
         if (changeListener != null) {
             changeListener.run();
         }
@@ -157,5 +166,12 @@ public class DatePickerField extends JPanel {
 
     public void setDateValidator(java.util.function.Predicate<LocalDate> validator) {
         this.dateValidator = validator;
+    }
+
+    @Override
+    public void setEnabled(boolean enabled) {
+        super.setEnabled(enabled);
+        displayField.setEnabled(enabled);
+        dropButton.setEnabled(enabled);
     }
 }

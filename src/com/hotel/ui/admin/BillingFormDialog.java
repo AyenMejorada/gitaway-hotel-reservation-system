@@ -63,6 +63,8 @@ public class BillingFormDialog extends JDialog {
         gbc.gridy = row++;
         form.add(formLabel("Reservation"), gbc);
         reservationCombo = new JComboBox<>();
+        reservationCombo.setPreferredSize(new Dimension(0, 36));
+        reservationCombo.setFont(UIUtils.FONT_REGULAR);
         reservationCombo.addActionListener(e -> updateRoomChargesPreview());
         gbc.gridy = row++;
         form.add(reservationCombo, gbc);
@@ -80,30 +82,40 @@ public class BillingFormDialog extends JDialog {
         gbc.gridy = row++;
         form.add(formLabel("Additional Charges (₱)"), gbc);
         additionalChargesField = new JTextField("0");
+        additionalChargesField.setPreferredSize(new Dimension(0, 36));
+        additionalChargesField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(additionalChargesField, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Discount (₱)"), gbc);
         discountField = new JTextField("0");
+        discountField.setPreferredSize(new Dimension(0, 36));
+        discountField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(discountField, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Tax (₱)"), gbc);
         taxField = new JTextField("0");
+        taxField.setPreferredSize(new Dimension(0, 36));
+        taxField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(taxField, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Payment Status"), gbc);
         paymentStatusCombo = new JComboBox<>(PaymentStatus.values());
+        paymentStatusCombo.setPreferredSize(new Dimension(0, 36));
+        paymentStatusCombo.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(paymentStatusCombo, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Payment Method"), gbc);
         paymentMethodCombo = new JComboBox<>(PaymentMethod.values());
+        paymentMethodCombo.setPreferredSize(new Dimension(0, 36));
+        paymentMethodCombo.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(paymentMethodCombo, gbc);
 
@@ -172,6 +184,12 @@ public class BillingFormDialog extends JDialog {
             BigDecimal tax = Validator.parseBigDecimal(taxField.getText(), "Tax");
             PaymentStatus paymentStatus = (PaymentStatus) paymentStatusCombo.getSelectedItem();
             PaymentMethod paymentMethod = (PaymentMethod) paymentMethodCombo.getSelectedItem();
+
+            Validator.requireNonNegative(additionalCharges, "Additional charges");
+            Validator.requireNonNegative(discount, "Discount");
+            Validator.requireNonNegative(tax, "Tax");
+            Validator.requireNonNull(paymentStatus, "Payment Status");
+            Validator.requireNonNull(paymentMethod, "Payment Method");
 
             if (existingBilling == null || existingBilling.getBillId() == 0) {
                 billingService.addBilling(selectedReservation.getReservationId(), additionalCharges, discount, tax,

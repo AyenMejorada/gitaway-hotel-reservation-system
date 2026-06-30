@@ -55,30 +55,40 @@ public class RoomFormDialog extends JDialog {
         gbc.gridy = row++;
         form.add(formLabel("Room Number"), gbc);
         roomNumberField = new JTextField();
+        roomNumberField.setPreferredSize(new Dimension(0, 36));
+        roomNumberField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(roomNumberField, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Room Type"), gbc);
         roomTypeCombo = new JComboBox<>(RoomType.values());
+        roomTypeCombo.setPreferredSize(new Dimension(0, 36));
+        roomTypeCombo.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(roomTypeCombo, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Price per Night (₱)"), gbc);
         priceField = new JTextField();
+        priceField.setPreferredSize(new Dimension(0, 36));
+        priceField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(priceField, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Status"), gbc);
         statusCombo = new JComboBox<>(RoomStatus.values());
+        statusCombo.setPreferredSize(new Dimension(0, 36));
+        statusCombo.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(statusCombo, gbc);
 
         gbc.gridy = row++;
         form.add(formLabel("Capacity (number of persons)"), gbc);
         capacityField = new JTextField();
+        capacityField.setPreferredSize(new Dimension(0, 36));
+        capacityField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
         form.add(capacityField, gbc);
 
@@ -87,6 +97,7 @@ public class RoomFormDialog extends JDialog {
         descriptionArea = new JTextArea(3, 20);
         descriptionArea.setLineWrap(true);
         descriptionArea.setWrapStyleWord(true);
+        descriptionArea.setFont(UIUtils.FONT_REGULAR);
         JScrollPane descScroll = new JScrollPane(descriptionArea);
         gbc.gridy = row++;
         gbc.weighty = 1;
@@ -122,12 +133,18 @@ public class RoomFormDialog extends JDialog {
 
     private void handleSave() {
         try {
-            String roomNumber = roomNumberField.getText();
+            String roomNumber = roomNumberField.getText().trim();
             RoomType type = (RoomType) roomTypeCombo.getSelectedItem();
             BigDecimal price = Validator.parseBigDecimal(priceField.getText(), "Price per night");
             RoomStatus status = (RoomStatus) statusCombo.getSelectedItem();
             int capacity = Validator.parseInt(capacityField.getText(), "Capacity");
-            String description = descriptionArea.getText();
+            String description = descriptionArea.getText().trim();
+
+            Validator.requireNonBlank(roomNumber, "Room number");
+            Validator.requirePositive(price, "Price per night");
+            Validator.requirePositive(capacity, "Capacity");
+            Validator.requireNonNull(type, "Room Type");
+            Validator.requireNonNull(status, "Status");
 
             if (existingRoom == null) {
                 roomService.addRoom(roomNumber, type, price, status, capacity, description);

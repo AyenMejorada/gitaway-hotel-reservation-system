@@ -23,25 +23,30 @@ public class ReservationDaoImpl implements ReservationDao {
 
     // Joined select used for every read so the UI always has guest/room display data available.
     private static final String BASE_SELECT =
-            "SELECT r.*, g.first_name, g.last_name, rm.room_number, rm.room_type, rm.price_per_night " +
+            "SELECT r.*, g.first_name, g.last_name, rm.room_number, rm.price_per_night " +
             "FROM reservations r " +
             "JOIN guests g ON r.guest_id = g.guest_id " +
-            "JOIN rooms rm ON r.room_id = rm.room_id ";
+            "LEFT JOIN rooms rm ON r.room_id = rm.room_id ";
 
     @Override
     public Reservation create(Reservation reservation) {
-        String sql = "INSERT INTO reservations (guest_id, room_id, check_in_date, check_out_date, "
-                + "num_guests, status, total_amount, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO reservations (guest_id, room_type, room_id, check_in_date, check_out_date, "
+                + "num_guests, status, total_amount, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, reservation.getGuestId());
-            ps.setInt(2, reservation.getRoomId());
-            ps.setDate(3, Date.valueOf(reservation.getCheckInDate()));
-            ps.setDate(4, Date.valueOf(reservation.getCheckOutDate()));
-            ps.setInt(5, reservation.getNumGuests());
-            ps.setString(6, reservation.getStatus().name());
-            ps.setBigDecimal(7, reservation.getTotalAmount());
-            ps.setString(8, reservation.getNotes());
+            ps.setString(2, reservation.getRoomType().name());
+            if (reservation.getRoomId() > 0) {
+                ps.setInt(3, reservation.getRoomId());
+            } else {
+                ps.setNull(3, java.sql.Types.INTEGER);
+            }
+            ps.setDate(4, Date.valueOf(reservation.getCheckInDate()));
+            ps.setDate(5, Date.valueOf(reservation.getCheckOutDate()));
+            ps.setInt(6, reservation.getNumGuests());
+            ps.setString(7, reservation.getStatus().name());
+            ps.setBigDecimal(8, reservation.getTotalAmount());
+            ps.setString(9, reservation.getNotes());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 if (keys.next()) {
@@ -56,20 +61,25 @@ public class ReservationDaoImpl implements ReservationDao {
 
     @Override
     public void update(Reservation reservation) {
-        String sql = "UPDATE reservations SET guest_id = ?, room_id = ?, check_in_date = ?, "
+        String sql = "UPDATE reservations SET guest_id = ?, room_type = ?, room_id = ?, check_in_date = ?, "
                 + "check_out_date = ?, num_guests = ?, status = ?, total_amount = ?, notes = ? "
                 + "WHERE reservation_id = ?";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, reservation.getGuestId());
-            ps.setInt(2, reservation.getRoomId());
-            ps.setDate(3, Date.valueOf(reservation.getCheckInDate()));
-            ps.setDate(4, Date.valueOf(reservation.getCheckOutDate()));
-            ps.setInt(5, reservation.getNumGuests());
-            ps.setString(6, reservation.getStatus().name());
-            ps.setBigDecimal(7, reservation.getTotalAmount());
-            ps.setString(8, reservation.getNotes());
-            ps.setInt(9, reservation.getReservationId());
+            ps.setString(2, reservation.getRoomType().name());
+            if (reservation.getRoomId() > 0) {
+                ps.setInt(3, reservation.getRoomId());
+            } else {
+                ps.setNull(3, java.sql.Types.INTEGER);
+            }
+            ps.setDate(4, Date.valueOf(reservation.getCheckInDate()));
+            ps.setDate(5, Date.valueOf(reservation.getCheckOutDate()));
+            ps.setInt(6, reservation.getNumGuests());
+            ps.setString(7, reservation.getStatus().name());
+            ps.setBigDecimal(8, reservation.getTotalAmount());
+            ps.setString(9, reservation.getNotes());
+            ps.setInt(10, reservation.getReservationId());
             int rows = ps.executeUpdate();
             if (rows == 0) {
                 throw new DatabaseException("Reservation not found for update (id=" + reservation.getReservationId() + ").");
@@ -212,7 +222,7 @@ public class ReservationDaoImpl implements ReservationDao {
         String sql = "SELECT COUNT(*) FROM reservations WHERE is_deleted = 0";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+              ResultSet rs = ps.executeQuery()) {
             rs.next();
             return rs.getLong(1);
         } catch (SQLException e) {
@@ -221,7 +231,7 @@ public class ReservationDaoImpl implements ReservationDao {
     }
 
     @Override
-    public BigDecimal sumRevenue() {
+    public java.math.BigDecimal sumRevenue() {
         // Revenue = total of all active reservations that are not cancelled/pending.
         String sql = "SELECT COALESCE(SUM(total_amount), 0) FROM reservations "
                 + "WHERE is_deleted = 0 AND status IN ('CONFIRMED', 'CHECKED_IN', 'CHECKED_OUT')";

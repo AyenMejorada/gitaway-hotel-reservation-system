@@ -3,6 +3,7 @@ package com.hotel.ui.common;
 import com.hotel.exception.HotelException;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 
 /**
@@ -84,6 +85,30 @@ public final class UIUtils {
         table.getTableHeader().setBackground(PRIMARY_COLOR);
         table.getTableHeader().setForeground(Color.WHITE);
         table.setFillsViewportHeight(true);
+
+        // Align header text to match corresponding cell alignments
+        table.getTableHeader().setDefaultRenderer(new javax.swing.table.TableCellRenderer() {
+            private final javax.swing.table.TableCellRenderer defaultRenderer = table.getTableHeader().getDefaultRenderer();
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
+                Component comp = defaultRenderer.getTableCellRendererComponent(t, value, isSelected, hasFocus, row, col);
+                if (comp instanceof JLabel) {
+                    JLabel label = (JLabel) comp;
+                    label.setFont(UIUtils.FONT_BOLD);
+                    label.setBackground(UIUtils.PRIMARY_COLOR);
+                    label.setForeground(Color.WHITE);
+                    // Match cell horizontal alignment
+                    javax.swing.table.TableColumn tableCol = t.getColumnModel().getColumn(col);
+                    javax.swing.table.TableCellRenderer cellRen = tableCol.getCellRenderer();
+                    if (cellRen instanceof DefaultTableCellRenderer) {
+                        label.setHorizontalAlignment(((DefaultTableCellRenderer) cellRen).getHorizontalAlignment());
+                    } else {
+                        label.setHorizontalAlignment(JLabel.CENTER);
+                    }
+                }
+                return comp;
+            }
+        });
     }
 
     public static JLabel createSectionTitle(String text) {
@@ -91,5 +116,116 @@ public final class UIUtils {
         label.setFont(FONT_TITLE);
         label.setForeground(PRIMARY_COLOR);
         return label;
+    }
+
+    public static void formatTableColumns(JTable table) {
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        int columnCount = table.getColumnCount();
+        FontMetrics fm = table.getFontMetrics(table.getFont());
+        FontMetrics headerFm = table.getTableHeader().getFontMetrics(table.getTableHeader().getFont());
+
+        for (int i = 0; i < columnCount; i++) {
+            javax.swing.table.TableColumn column = table.getColumnModel().getColumn(i);
+            String colName = table.getColumnName(i).toLowerCase();
+
+            // Calculate content-based widths
+            int maxCellWidth = headerFm.stringWidth(table.getColumnName(i)) + 24;
+            for (int r = 0; r < table.getRowCount(); r++) {
+                Object val = table.getValueAt(r, i);
+                if (val != null) {
+                    String valStr = val.toString();
+                    if (colName.contains("status")) {
+                        valStr = valStr.toUpperCase().replace("_", " ");
+                    } else if ((colName.contains("amount") || colName.contains("price") || colName.contains("charges") || colName.contains("total") || colName.contains("discount") || colName.contains("tax")) && !valStr.startsWith("₱")) {
+                        try {
+                            double num = Double.parseDouble(valStr.replaceAll("[^\\d.]", ""));
+                            valStr = String.format("₱%,.2f", num);
+                        } catch (Exception ignored) {}
+                    }
+                    int cellWidth = fm.stringWidth(valStr) + 20;
+                    if (cellWidth > maxCellWidth) {
+                        maxCellWidth = cellWidth;
+                    }
+                }
+            }
+
+            int minWidth = 60;
+            int prefWidth = maxCellWidth;
+
+            // Enforce bounds based on standard fields
+            if (colName.contains("id")) {
+                prefWidth = Math.max(60, Math.min(prefWidth, 80));
+            } else if ((colName.contains("room") && colName.contains("number")) || colName.equals("room") || colName.equals("room number")) {
+                prefWidth = Math.max(80, Math.min(prefWidth, 100));
+            } else if (colName.contains("guest") && colName.contains("number") || colName.equals("guests") || colName.contains("capacity") || colName.contains("nights")) {
+                prefWidth = Math.max(80, Math.min(prefWidth, 100));
+            } else if (colName.contains("guest") || colName.contains("name")) {
+                prefWidth = Math.max(180, prefWidth);
+            } else if (colName.contains("type")) {
+                prefWidth = Math.max(130, prefWidth);
+            } else if (colName.contains("status")) {
+                prefWidth = Math.max(130, prefWidth);
+            } else if (colName.contains("amount") || colName.contains("total") || colName.contains("price") || colName.contains("charges") || colName.contains("discount") || colName.contains("tax")) {
+                prefWidth = Math.max(130, prefWidth);
+            }
+
+            column.setPreferredWidth(prefWidth);
+            column.setMinWidth(minWidth);
+
+            // Apply Alignments & Renderers
+            DefaultTableCellRenderer cellRenderer;
+            if (colName.contains("status")) {
+                cellRenderer = new StatusBadgeRenderer();
+            } else {
+                cellRenderer = new DefaultTableCellRenderer();
+                if (colName.contains("id") || colName.contains("room") || colName.contains("nights") || colName.contains("guests") || colName.contains("capacity") || colName.contains("date") || colName.contains("in") || colName.contains("out")) {
+                    cellRenderer.setHorizontalAlignment(JLabel.CENTER);
+                } else if (colName.contains("amount") || colName.contains("price") || colName.contains("charges") || colName.contains("total") || colName.contains("discount") || colName.contains("tax")) {
+                    cellRenderer.setHorizontalAlignment(JLabel.RIGHT);
+                } else {
+                    cellRenderer.setHorizontalAlignment(JLabel.LEFT);
+                }
+            }
+            column.setCellRenderer(cellRenderer);
+        }
+    }
+
+    public static JComponent createStatusBadge(String status) {
+        if (status == null) {
+            status = "-";
+        }
+        String valStr = status.toUpperCase().replace("_", " ");
+        JLabel label = new JLabel(valStr, SwingConstants.CENTER);
+        label.setFont(FONT_BOLD);
+        label.setOpaque(true);
+        label.setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
+
+        Color fg, bg;
+        if (valStr.equals("PENDING") || valStr.equals("MAINTENANCE")) {
+            fg = new Color(216, 107, 0);
+            bg = new Color(255, 243, 230);
+        } else if (valStr.equals("CONFIRMED") || valStr.equals("RESERVED")) {
+            fg = new Color(0, 102, 204);
+            bg = new Color(230, 242, 255);
+        } else if (valStr.equals("CHECKED IN") || valStr.equals("AVAILABLE") || valStr.equals("PAID")) {
+            fg = new Color(30, 120, 45);
+            bg = new Color(230, 245, 233);
+        } else if (valStr.equals("CHECKED OUT") || valStr.equals("COMPLETED") || valStr.equals("UNPAID")) {
+            fg = new Color(100, 100, 100);
+            bg = new Color(240, 240, 240);
+        } else if (valStr.equals("CANCELLED") || valStr.equals("OCCUPIED") || valStr.equals("OVERDUE")) {
+            fg = new Color(185, 30, 30);
+            bg = new Color(255, 235, 235);
+        } else {
+            fg = Color.DARK_GRAY;
+            bg = Color.WHITE;
+        }
+        label.setForeground(fg);
+        label.setBackground(bg);
+
+        JPanel container = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        container.setOpaque(false);
+        container.add(label);
+        return container;
     }
 }
