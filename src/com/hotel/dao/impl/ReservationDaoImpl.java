@@ -171,7 +171,7 @@ public class ReservationDaoImpl implements ReservationDao {
                                               Integer excludingReservationId) {
         // Two date ranges [a,b) and [c,d) overlap when a < d AND c < b.
         String sql = "SELECT COUNT(*) FROM reservations WHERE room_id = ? AND is_deleted = 0 "
-                + "AND status NOT IN ('CANCELLED', 'CHECKED_OUT') "
+                + "AND status IN ('CONFIRMED', 'CHECKED_IN') "
                 + "AND check_in_date < ? AND ? < check_out_date "
                 + "AND reservation_id <> ?";
         try (Connection conn = ConnectionFactory.getConnection();
@@ -186,6 +186,24 @@ public class ReservationDaoImpl implements ReservationDao {
             }
         } catch (SQLException e) {
             throw new DatabaseException("Failed to check room availability.", e);
+        }
+    }
+
+    @Override
+    public List<Reservation> findConfirmedReservationsByRoomId(int roomId) {
+        String sql = BASE_SELECT + " WHERE r.is_deleted = 0 AND r.room_id = ? AND r.status IN ('CONFIRMED', 'CHECKED_IN') ORDER BY r.check_in_date ASC";
+        List<Reservation> list = new ArrayList<>();
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, roomId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapRow(rs));
+                }
+            }
+            return list;
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to load confirmed reservations for room ID: " + roomId, e);
         }
     }
 

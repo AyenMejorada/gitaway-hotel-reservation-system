@@ -41,6 +41,7 @@ public class MakeReservationPanel extends JPanel {
     private JTextField maxGuestsField;
     private JTextArea notesArea;
     private JLabel estimatedTotalLabel;
+    private List<Reservation> confirmedReservations = new java.util.ArrayList<>();
 
     public MakeReservationPanel() {
         initComponents();
@@ -76,6 +77,7 @@ public class MakeReservationPanel extends JPanel {
         roomCombo.addActionListener(e -> {
             updateMaxGuests();
             updateEstimate();
+            updateConfirmedReservations();
         });
         gbc.gridy = row++;
         formCard.add(roomCombo, gbc);
@@ -83,6 +85,7 @@ public class MakeReservationPanel extends JPanel {
         gbc.gridy = row++;
         formCard.add(formLabel("Check-in Date"), gbc);
         checkInPicker = new DatePickerField();
+        checkInPicker.setDateValidator(this::isDateAvailable);
         checkInPicker.addChangeListener(this::updateEstimate);
         gbc.gridy = row++;
         formCard.add(checkInPicker, gbc);
@@ -90,6 +93,7 @@ public class MakeReservationPanel extends JPanel {
         gbc.gridy = row++;
         formCard.add(formLabel("Check-out Date"), gbc);
         checkOutPicker = new DatePickerField();
+        checkOutPicker.setDateValidator(this::isDateAvailable);
         checkOutPicker.addChangeListener(this::updateEstimate);
         gbc.gridy = row++;
         formCard.add(checkOutPicker, gbc);
@@ -163,6 +167,7 @@ public class MakeReservationPanel extends JPanel {
             }
             updateMaxGuests();
             updateEstimate();
+            updateConfirmedReservations();
         });
     }
 
@@ -249,6 +254,33 @@ public class MakeReservationPanel extends JPanel {
         estimatedTotalLabel.setText("Estimated Total: ₱0.00");
     }
 
+    private void updateConfirmedReservations() {
+        Room selectedRoom = (Room) roomCombo.getSelectedItem();
+        if (selectedRoom == null) {
+            confirmedReservations = new java.util.ArrayList<>();
+        } else {
+            UIUtils.runSafely(this, () -> {
+                confirmedReservations = reservationService.getConfirmedReservationsForRoom(selectedRoom.getRoomId());
+            });
+        }
+    }
+
+    private boolean isDateAvailable(LocalDate date) {
+        if (date.isBefore(LocalDate.now())) {
+            return false;
+        }
+        Room selectedRoom = (Room) roomCombo.getSelectedItem();
+        if (selectedRoom == null) {
+            return true;
+        }
+        for (Reservation res : confirmedReservations) {
+            if (!date.isBefore(res.getCheckInDate()) && date.isBefore(res.getCheckOutDate())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * Simple self-contained calendar dropdown field. Displays the selected date
      * (yyyy-MM-dd) in a read-only text box; clicking the "▼" button opens a popup
@@ -266,6 +298,7 @@ public class MakeReservationPanel extends JPanel {
         private YearMonth currentMonth = YearMonth.now();
         private LocalDate selectedDate;
         private Runnable changeListener;
+        private java.util.function.Predicate<LocalDate> dateValidator;
 
         DatePickerField() {
             super(new BorderLayout(4, 0));
@@ -355,10 +388,15 @@ public class MakeReservationPanel extends JPanel {
                     dayButton.setBackground(UIUtils.ACCENT_COLOR);
                     dayButton.setForeground(Color.WHITE);
                 }
-                dayButton.addActionListener(e -> {
-                    setDate(date);
-                    popup.setVisible(false);
-                });
+                if (dateValidator != null && !dateValidator.test(date)) {
+                    dayButton.setEnabled(false);
+                    dayButton.setToolTipText("This date is unavailable for the selected room.");
+                } else {
+                    dayButton.addActionListener(e -> {
+                        setDate(date);
+                        popup.setVisible(false);
+                    });
+                }
                 calendarGrid.add(dayButton);
             }
 
@@ -380,6 +418,10 @@ public class MakeReservationPanel extends JPanel {
 
         void addChangeListener(Runnable listener) {
             this.changeListener = listener;
+        }
+
+        void setDateValidator(java.util.function.Predicate<LocalDate> validator) {
+            this.dateValidator = validator;
         }
     }
 }
