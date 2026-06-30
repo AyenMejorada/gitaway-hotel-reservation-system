@@ -58,12 +58,8 @@ public class ViewReservationPanel extends JPanel {
         JButton cancelButton = UIUtils.createStyledButton("Cancel Selected", UIUtils.DANGER_COLOR);
         cancelButton.addActionListener(e -> handleCancel());
 
-        JButton refreshButton = UIUtils.createStyledButton("Refresh", Color.GRAY);
-        refreshButton.addActionListener(e -> refresh());
-
         buttonsRow.add(updateButton);
         buttonsRow.add(cancelButton);
-        buttonsRow.add(refreshButton);
         headerRow.add(buttonsRow, BorderLayout.EAST);
 
         add(headerRow, BorderLayout.NORTH);

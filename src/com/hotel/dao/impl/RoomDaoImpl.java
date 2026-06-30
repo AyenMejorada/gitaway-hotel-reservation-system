@@ -7,7 +7,6 @@ import com.hotel.model.Room;
 import com.hotel.model.RoomStatus;
 import com.hotel.model.RoomType;
 
-import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -25,7 +24,7 @@ public class RoomDaoImpl implements RoomDao {
         String sql = "INSERT INTO rooms (room_number, room_type, price_per_night, status, capacity, description) "
                 + "VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, room.getRoomNumber());
             ps.setString(2, room.getRoomType().name());
             ps.setBigDecimal(3, room.getPricePerNight());
@@ -49,7 +48,7 @@ public class RoomDaoImpl implements RoomDao {
         String sql = "UPDATE rooms SET room_number = ?, room_type = ?, price_per_night = ?, "
                 + "status = ?, capacity = ?, description = ? WHERE room_id = ?";
         try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, room.getRoomNumber());
             ps.setString(2, room.getRoomType().name());
             ps.setBigDecimal(3, room.getPricePerNight());
@@ -79,7 +78,7 @@ public class RoomDaoImpl implements RoomDao {
     private void setDeletedFlag(int roomId, boolean deleted) {
         String sql = "UPDATE rooms SET is_deleted = ? WHERE room_id = ?";
         try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setBoolean(1, deleted);
             ps.setInt(2, roomId);
             int rows = ps.executeUpdate();
@@ -95,7 +94,7 @@ public class RoomDaoImpl implements RoomDao {
     public Optional<Room> findById(int roomId) {
         String sql = "SELECT * FROM rooms WHERE room_id = ?";
         try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, roomId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
@@ -122,7 +121,7 @@ public class RoomDaoImpl implements RoomDao {
         String sql = "SELECT * FROM rooms WHERE is_deleted = ? ORDER BY room_number";
         List<Room> rooms = new ArrayList<>();
         try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setBoolean(1, deleted);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
@@ -139,7 +138,7 @@ public class RoomDaoImpl implements RoomDao {
     public boolean existsByRoomNumber(String roomNumber, Integer excludingRoomId) {
         String sql = "SELECT COUNT(*) FROM rooms WHERE room_number = ? AND room_id <> ?";
         try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+                PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, roomNumber);
             ps.setInt(2, excludingRoomId == null ? -1 : excludingRoomId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -155,8 +154,8 @@ public class RoomDaoImpl implements RoomDao {
     public long countActiveRooms() {
         String sql = "SELECT COUNT(*) FROM rooms WHERE is_deleted = 0";
         try (Connection conn = ConnectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
+                PreparedStatement ps = conn.prepareStatement(sql);
+                ResultSet rs = ps.executeQuery()) {
             rs.next();
             return rs.getLong(1);
         } catch (SQLException e) {
@@ -175,9 +174,11 @@ public class RoomDaoImpl implements RoomDao {
         r.setDescription(rs.getString("description"));
         r.setDeleted(rs.getBoolean("is_deleted"));
         Timestamp createdAt = rs.getTimestamp("created_at");
-        if (createdAt != null) r.setCreatedAt(createdAt.toLocalDateTime());
+        if (createdAt != null)
+            r.setCreatedAt(createdAt.toLocalDateTime());
         Timestamp updatedAt = rs.getTimestamp("updated_at");
-        if (updatedAt != null) r.setUpdatedAt(updatedAt.toLocalDateTime());
+        if (updatedAt != null)
+            r.setUpdatedAt(updatedAt.toLocalDateTime());
         return r;
     }
 }

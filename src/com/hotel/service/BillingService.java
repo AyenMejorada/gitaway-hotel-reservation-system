@@ -5,7 +5,6 @@ import com.hotel.dao.ReservationDao;
 import com.hotel.dao.impl.BillingDaoImpl;
 import com.hotel.dao.impl.ReservationDaoImpl;
 import com.hotel.exception.RecordNotFoundException;
-import com.hotel.exception.ValidationException;
 import com.hotel.model.Billing;
 import com.hotel.model.PaymentMethod;
 import com.hotel.model.PaymentStatus;
@@ -32,9 +31,10 @@ public class BillingService {
     }
 
     public Billing addBilling(int reservationId, BigDecimal additionalCharges, BigDecimal discount,
-                               BigDecimal tax, PaymentStatus paymentStatus, PaymentMethod paymentMethod) {
+            BigDecimal tax, PaymentStatus paymentStatus, PaymentMethod paymentMethod) {
         Reservation reservation = reservationDao.findById(reservationId)
-                .orElseThrow(() -> new RecordNotFoundException("Reservation with id " + reservationId + " was not found."));
+                .orElseThrow(
+                        () -> new RecordNotFoundException("Reservation with id " + reservationId + " was not found."));
 
         validateAmounts(additionalCharges, discount, tax);
         Validator.requireNonNull(paymentStatus, "Payment status");
@@ -54,7 +54,7 @@ public class BillingService {
     }
 
     public void updateBilling(int billId, BigDecimal additionalCharges, BigDecimal discount, BigDecimal tax,
-                               PaymentStatus paymentStatus, PaymentMethod paymentMethod) {
+            PaymentStatus paymentStatus, PaymentMethod paymentMethod) {
         validateAmounts(additionalCharges, discount, tax);
         Validator.requireNonNull(paymentStatus, "Payment status");
         Validator.requireNonNull(paymentMethod, "Payment method");

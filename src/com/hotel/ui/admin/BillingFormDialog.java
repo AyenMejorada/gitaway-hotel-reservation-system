@@ -48,7 +48,7 @@ public class BillingFormDialog extends JDialog {
     }
 
     private void initComponents() {
-        setSize(440, 480);
+        setSize(440, 620);
         setLocationRelativeTo(getOwner());
         setResizable(false);
 
