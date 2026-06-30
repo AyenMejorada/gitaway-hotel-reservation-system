@@ -34,6 +34,7 @@ public class ReservationFormDialog extends JDialog {
 
     private final Reservation existingReservation; // null when adding
     private boolean saved = false;
+    private ReservationStatus savedStatus = null;
 
     private JTextField guestNameField; // null when editing
     private JComboBox<Room> roomCombo;
@@ -224,6 +225,7 @@ public class ReservationFormDialog extends JDialog {
                 UIUtils.showSuccess(this, "Reservation updated successfully.");
             }
             saved = true;
+            savedStatus = status;
             dispose();
         } catch (HotelException ex) {
             UIUtils.showError(this, ex.getMessage());
@@ -271,5 +273,9 @@ public class ReservationFormDialog extends JDialog {
 
     public boolean isSaved() {
         return saved;
+    }
+
+    public ReservationStatus getSavedStatus() {
+        return savedStatus;
     }
 }

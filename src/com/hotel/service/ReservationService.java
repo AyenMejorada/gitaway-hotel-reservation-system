@@ -6,6 +6,7 @@ import com.hotel.dao.impl.ReservationDaoImpl;
 import com.hotel.dao.impl.RoomDaoImpl;
 import com.hotel.exception.RecordNotFoundException;
 import com.hotel.exception.ValidationException;
+import com.hotel.db.TransactionManager;
 import com.hotel.model.Reservation;
 import com.hotel.model.ReservationStatus;
 import com.hotel.model.Room;
@@ -40,6 +41,7 @@ public class ReservationService {
     public Reservation addReservation(int guestId, int roomId, LocalDate checkIn, LocalDate checkOut,
             int numGuests, ReservationStatus status, String notes) {
         validateCoreFields(roomId, checkIn, checkOut, numGuests, status);
+        Validator.validateNotInPast(checkIn, "Check-in date");
 
         Room room = roomDao.findById(roomId)
                 .orElseThrow(() -> new RecordNotFoundException("Selected room was not found."));
@@ -47,6 +49,11 @@ public class ReservationService {
         if (room.getStatus() == RoomStatus.MAINTENANCE) {
             throw new ValidationException(
                     "Room " + room.getRoomNumber() + " is currently in maintenance and cannot be booked.");
+        }
+
+        if (numGuests > room.getCapacity()) {
+            throw new ValidationException(
+                    "Number of guests exceeds the room's maximum capacity of " + room.getCapacity() + ".");
         }
 
         if (reservationDao.hasOverlappingReservation(roomId, checkIn, checkOut, null)) {
@@ -64,12 +71,18 @@ public class ReservationService {
         reservation.setNotes(notes == null ? "" : notes.trim());
         reservation.setTotalAmount(calculateTotal(room.getPricePerNight(), checkIn, checkOut));
 
-        Reservation created = reservationDao.create(reservation);
-        if (status == ReservationStatus.CHECKED_IN) {
-            room.setStatus(RoomStatus.OCCUPIED);
-            roomDao.update(room);
+        TransactionManager.begin();
+        try {
+            Reservation created = reservationDao.create(reservation);
+            if (status == ReservationStatus.CHECKED_IN) {
+                updateRoomStatus(roomId, RoomStatus.OCCUPIED);
+            }
+            TransactionManager.commit();
+            return created;
+        } catch (Exception e) {
+            TransactionManager.rollback();
+            throw e;
         }
-        return created;
     }
 
     public void updateReservation(int reservationId, int roomId, LocalDate checkIn, LocalDate checkOut,
@@ -79,6 +92,12 @@ public class ReservationService {
         Reservation existing = getReservationOrThrow(reservationId);
         int oldRoomId = existing.getRoomId();
 
+        if (!existing.getCheckInDate().equals(checkIn)) {
+            Validator.validateNotInPast(checkIn, "Check-in date");
+        }
+
+        validateStatusTransition(existing.getStatus(), status);
+
         Room room = roomDao.findById(roomId)
                 .orElseThrow(() -> new RecordNotFoundException("Selected room was not found."));
 
@@ -87,39 +106,52 @@ public class ReservationService {
                     "Room " + room.getRoomNumber() + " is currently in maintenance and cannot be booked.");
         }
 
+        if (numGuests > room.getCapacity()) {
+            throw new ValidationException(
+                    "Number of guests exceeds the room's maximum capacity of " + room.getCapacity() + ".");
+        }
+
         if (reservationDao.hasOverlappingReservation(roomId, checkIn, checkOut, reservationId)) {
             throw new ValidationException(
                     "Room " + room.getRoomNumber() + " is already booked for an overlapping date range.");
         }
 
-        existing.setRoomId(roomId);
-        existing.setCheckInDate(checkIn);
-        existing.setCheckOutDate(checkOut);
-        existing.setNumGuests(numGuests);
-        existing.setStatus(status);
-        existing.setNotes(notes == null ? "" : notes.trim());
-        existing.setTotalAmount(calculateTotal(room.getPricePerNight(), checkIn, checkOut));
+        TransactionManager.begin();
+        try {
+            ReservationStatus oldStatus = existing.getStatus();
 
-        reservationDao.update(existing);
+            existing.setRoomId(roomId);
+            existing.setCheckInDate(checkIn);
+            existing.setCheckOutDate(checkOut);
+            existing.setNumGuests(numGuests);
+            existing.setStatus(status);
+            existing.setNotes(notes == null ? "" : notes.trim());
+            existing.setTotalAmount(calculateTotal(room.getPricePerNight(), checkIn, checkOut));
 
-        // Sync old room if room changed
-        if (oldRoomId != roomId) {
-            Room oldRoom = roomDao.findById(oldRoomId).orElse(null);
-            if (oldRoom != null && oldRoom.getStatus() == RoomStatus.OCCUPIED) {
-                oldRoom.setStatus(RoomStatus.AVAILABLE);
-                roomDao.update(oldRoom);
+            reservationDao.update(existing);
+
+            // Sync room status
+            if (oldRoomId != roomId) {
+                if (oldStatus == ReservationStatus.CHECKED_IN) {
+                    updateRoomStatus(oldRoomId, RoomStatus.AVAILABLE);
+                }
+                if (status == ReservationStatus.CHECKED_IN) {
+                    updateRoomStatus(roomId, RoomStatus.OCCUPIED);
+                }
+            } else {
+                if (oldStatus != status) {
+                    if (status == ReservationStatus.CHECKED_IN) {
+                        updateRoomStatus(roomId, RoomStatus.OCCUPIED);
+                    } else if (status == ReservationStatus.CHECKED_OUT || status == ReservationStatus.CANCELLED) {
+                        updateRoomStatus(roomId, RoomStatus.AVAILABLE);
+                    }
+                }
             }
-        }
 
-        // Sync new room based on status
-        if (status == ReservationStatus.CHECKED_IN) {
-            room.setStatus(RoomStatus.OCCUPIED);
-            roomDao.update(room);
-        } else if (status == ReservationStatus.CHECKED_OUT || status == ReservationStatus.CANCELLED) {
-            if (room.getStatus() == RoomStatus.OCCUPIED) {
-                room.setStatus(RoomStatus.AVAILABLE);
-                roomDao.update(room);
-            }
+            TransactionManager.commit();
+        } catch (Exception e) {
+            TransactionManager.rollback();
+            throw e;
         }
     }
 
@@ -128,17 +160,25 @@ public class ReservationService {
      * deleting.
      */
     public void cancelReservation(int reservationId) {
-        Reservation existing = getReservationOrThrow(reservationId);
-        if (existing.getStatus() == ReservationStatus.CHECKED_OUT) {
-            throw new ValidationException("A checked-out reservation cannot be cancelled.");
-        }
-        existing.setStatus(ReservationStatus.CANCELLED);
-        reservationDao.update(existing);
+        TransactionManager.begin();
+        try {
+            Reservation existing = getReservationOrThrow(reservationId);
+            validateStatusTransition(existing.getStatus(), ReservationStatus.CANCELLED);
 
-        Room room = roomDao.findById(existing.getRoomId()).orElse(null);
-        if (room != null && room.getStatus() == RoomStatus.OCCUPIED) {
-            room.setStatus(RoomStatus.AVAILABLE);
-            roomDao.update(room);
+            int roomId = existing.getRoomId();
+            ReservationStatus oldStatus = existing.getStatus();
+
+            existing.setStatus(ReservationStatus.CANCELLED);
+            reservationDao.update(existing);
+
+            if (oldStatus == ReservationStatus.CHECKED_IN) {
+                updateRoomStatus(roomId, RoomStatus.AVAILABLE);
+            }
+
+            TransactionManager.commit();
+        } catch (Exception e) {
+            TransactionManager.rollback();
+            throw e;
         }
     }
 
@@ -184,6 +224,42 @@ public class ReservationService {
     private BigDecimal calculateTotal(BigDecimal pricePerNight, LocalDate checkIn, LocalDate checkOut) {
         long nights = checkOut.toEpochDay() - checkIn.toEpochDay();
         return pricePerNight.multiply(BigDecimal.valueOf(nights));
+    }
+
+    private void updateRoomStatus(int roomId, RoomStatus targetStatus) {
+        roomDao.findById(roomId).ifPresent(room -> {
+            if (room.getStatus() != targetStatus) {
+                room.setStatus(targetStatus);
+                roomDao.update(room);
+            }
+        });
+    }
+
+    private void validateStatusTransition(ReservationStatus current, ReservationStatus target) {
+        if (current == target) {
+            return;
+        }
+        if (current == ReservationStatus.CHECKED_OUT) {
+            throw new ValidationException("A checked-out reservation cannot be changed to " + target + ".");
+        }
+        if (current == ReservationStatus.CANCELLED) {
+            throw new ValidationException("A cancelled reservation cannot be changed to " + target + ".");
+        }
+        if (current == ReservationStatus.CHECKED_IN) {
+            if (target != ReservationStatus.CHECKED_OUT) {
+                throw new ValidationException("A checked-in reservation can only transition to CHECKED_OUT.");
+            }
+        }
+        if (current == ReservationStatus.CONFIRMED) {
+            if (target != ReservationStatus.CHECKED_IN && target != ReservationStatus.CANCELLED) {
+                throw new ValidationException("A confirmed reservation can only transition to CHECKED_IN or CANCELLED.");
+            }
+        }
+        if (current == ReservationStatus.PENDING) {
+            if (target == ReservationStatus.CHECKED_OUT) {
+                throw new ValidationException("A pending reservation cannot transition directly to CHECKED_OUT.");
+            }
+        }
     }
 
     private void validateCoreFields(int roomId, LocalDate checkIn, LocalDate checkOut,

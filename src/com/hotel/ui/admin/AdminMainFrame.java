@@ -18,18 +18,19 @@ public class AdminMainFrame extends JFrame {
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel contentPanel = new JPanel(cardLayout);
 
-    private static final String CARD_DASHBOARD = "DASHBOARD";
-    private static final String CARD_RESERVATIONS = "RESERVATIONS";
-    private static final String CARD_ROOMS = "ROOMS";
-    private static final String CARD_GUESTS = "GUESTS";
-    private static final String CARD_BILLING = "BILLING";
+    static final String CARD_DASHBOARD = "DASHBOARD";
+    static final String CARD_RESERVATIONS = "RESERVATIONS";
+    static final String CARD_ROOMS = "ROOMS";
+    static final String CARD_GUESTS = "GUESTS";
+    static final String CARD_BILLING = "BILLING";
 
     private DashboardPanel dashboardPanel;
     private ReservationManagementPanel reservationPanel;
     private RoomManagementPanel roomPanel;
     private GuestManagementPanel guestPanel;
-    private BillingManagementPanel billingPanel;
+    private BillingManagementPanel billingManagementPanel;
     private JButton activeNavButton;
+    private final java.util.Map<String, JButton> navButtons = new java.util.HashMap<>();
 
     public AdminMainFrame() {
         super("Hotel Reservation System - Admin Panel");
@@ -113,6 +114,8 @@ public class AdminMainFrame extends JFrame {
             setActiveButton(button);
         });
 
+        navButtons.put(cardName, button);
+
         return button;
     }
 
@@ -143,13 +146,13 @@ public class AdminMainFrame extends JFrame {
         reservationPanel = new ReservationManagementPanel();
         roomPanel = new RoomManagementPanel();
         guestPanel = new GuestManagementPanel();
-        billingPanel = new BillingManagementPanel();
+        billingManagementPanel = new BillingManagementPanel();
 
         contentPanel.add(dashboardPanel, CARD_DASHBOARD);
         contentPanel.add(reservationPanel, CARD_RESERVATIONS);
         contentPanel.add(roomPanel, CARD_ROOMS);
         contentPanel.add(guestPanel, CARD_GUESTS);
-        contentPanel.add(billingPanel, CARD_BILLING);
+        contentPanel.add(billingManagementPanel, CARD_BILLING);
 
         return contentPanel;
     }
@@ -163,10 +166,25 @@ public class AdminMainFrame extends JFrame {
             roomPanel.refreshCurrentView();
         } else if (cardName.equals(CARD_GUESTS) && guestPanel != null) {
             guestPanel.refreshCurrentView();
-        } else if (cardName.equals(CARD_BILLING) && billingPanel != null) {
-            billingPanel.refreshCurrentView();
+        } else if (cardName.equals(CARD_BILLING) && billingManagementPanel != null) {
+            billingManagementPanel.refreshCurrentView();
         }
         cardLayout.show(contentPanel, cardName);
+    }
+
+    public void navigateToCard(String cardName) {
+        showCard(cardName);
+        JButton button = navButtons.get(cardName);
+        if (button != null) {
+            setActiveButton(button);
+        }
+    }
+
+    public void navigateToBillingAndShow(int reservationId) {
+        navigateToCard(CARD_BILLING);
+        if (billingManagementPanel != null) {
+            billingManagementPanel.showBillForReservation(reservationId);
+        }
     }
 
     private void handleLogout() {
