@@ -19,12 +19,13 @@ import java.sql.Statement;
  * <p>
  * It performs three checks, each printed clearly to the console:
  * <ol>
- *     <li>Can {@link DatabaseConnection#getConnection()} open a raw connection?</li>
- *     <li>Does {@link ConnectionFactory#testConnection()} (the helper used by
- *         the rest of the app) agree?</li>
- *     <li>Can a simple query actually run against the {@code hotel_reservation_db}
- *         schema (confirms the database/tables from schema.sql actually exist,
- *         not just that MySQL itself is reachable)?</li>
+ * <li>Can {@link DatabaseConnection#getConnection()} open a raw
+ * connection?</li>
+ * <li>Does {@link ConnectionFactory#testConnection()} (the helper used by
+ * the rest of the app) agree?</li>
+ * <li>Can a simple query actually run against the {@code hotel_reservation_db}
+ * schema (confirms the database/tables from schema.sql actually exist,
+ * not just that MySQL itself is reachable)?</li>
  * </ol>
  */
 public class DatabaseConnectionTest {
@@ -46,7 +47,8 @@ public class DatabaseConnectionTest {
             System.out.println("Common causes:");
             System.out.println("  - MySQL service is not running");
             System.out.println("  - schema.sql has not been executed yet");
-            System.out.println("  - URL / USERNAME / PASSWORD in DatabaseConnection.java do not match your MySQL setup");
+            System.out
+                    .println("  - URL / USERNAME / PASSWORD in DatabaseConnection.java do not match your MySQL setup");
         }
         System.out.println("=================================================");
     }
@@ -80,7 +82,7 @@ public class DatabaseConnectionTest {
         System.out.println("\n[2/3] Testing ConnectionFactory.testConnection() ...");
         boolean ok = ConnectionFactory.testConnection();
         System.out.println(ok ? "  OK: ConnectionFactory reports the database is reachable."
-                               : "  FAILED: ConnectionFactory reports the database is NOT reachable.");
+                : "  FAILED: ConnectionFactory reports the database is NOT reachable.");
         return ok;
     }
 

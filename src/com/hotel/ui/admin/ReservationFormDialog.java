@@ -43,7 +43,8 @@ public class ReservationFormDialog extends JDialog {
     private JTextArea notesArea;
 
     public ReservationFormDialog(Window owner, Reservation existingReservation) {
-        super(owner, existingReservation == null ? "Add Reservation" : "Edit Reservation", ModalityType.APPLICATION_MODAL);
+        super(owner, existingReservation == null ? "Add Reservation" : "Edit Reservation",
+                ModalityType.APPLICATION_MODAL);
         this.existingReservation = existingReservation;
         initComponents();
         loadComboData();
