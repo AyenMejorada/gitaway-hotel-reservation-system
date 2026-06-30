@@ -30,6 +30,8 @@ public interface ReservationDao {
     /** Checks whether a room is already booked (non-cancelled) for an overlapping date range. */
     boolean hasOverlappingReservation(int roomId, LocalDate checkIn, LocalDate checkOut, Integer excludingReservationId);
 
+    List<Reservation> findConfirmedReservationsByRoomId(int roomId);
+
     long countActiveReservations();
 
     BigDecimal sumRevenue();

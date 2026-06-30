@@ -13,7 +13,7 @@ public class DatabaseConnection {
     // Database information
     private static final String URL = "jdbc:mysql://localhost:3306/hotel_reservation_db";
     private static final String USERNAME = "root";
-    private static final String PASSWORD = "M@rd3n4tu$110206";
+    private static final String PASSWORD = "@Ianpogi08";
 
     private static boolean initialized = false;
 

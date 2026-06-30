@@ -154,12 +154,20 @@ public class ViewReservationPanel extends JPanel {
         gbc.gridy = row++;
         form.add(boldLabel("Check-in Date (yyyy-MM-dd)"), gbc);
         JTextField checkInField = new JTextField(reservation.getCheckInDate().format(DATE_FORMAT));
+        if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
+            checkInField.setEditable(false);
+            checkInField.setEnabled(false);
+        }
         gbc.gridy = row++;
         form.add(checkInField, gbc);
 
         gbc.gridy = row++;
         form.add(boldLabel("Check-out Date (yyyy-MM-dd)"), gbc);
         JTextField checkOutField = new JTextField(reservation.getCheckOutDate().format(DATE_FORMAT));
+        if (reservation.getStatus() == ReservationStatus.CONFIRMED) {
+            checkOutField.setEditable(false);
+            checkOutField.setEnabled(false);
+        }
         gbc.gridy = row++;
         form.add(checkOutField, gbc);
 

@@ -121,6 +121,10 @@ public class ReservationService {
         return reservationDao.findActiveByGuestId(guestId);
     }
 
+    public List<Reservation> getConfirmedReservationsForRoom(int roomId) {
+        return reservationDao.findConfirmedReservationsByRoomId(roomId);
+    }
+
     public long countActiveReservations() {
         return reservationDao.countActiveReservations();
     }
