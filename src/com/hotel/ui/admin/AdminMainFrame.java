@@ -18,14 +18,16 @@ public class AdminMainFrame extends JFrame {
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel contentPanel = new JPanel(cardLayout);
 
-    private static final String CARD_DASHBOARD = "DASHBOARD";
-    private static final String CARD_RESERVATIONS = "RESERVATIONS";
-    private static final String CARD_ROOMS = "ROOMS";
-    private static final String CARD_GUESTS = "GUESTS";
-    private static final String CARD_BILLING = "BILLING";
+    static final String CARD_DASHBOARD = "DASHBOARD";
+    static final String CARD_RESERVATIONS = "RESERVATIONS";
+    static final String CARD_ROOMS = "ROOMS";
+    static final String CARD_GUESTS = "GUESTS";
+    static final String CARD_BILLING = "BILLING";
 
     private DashboardPanel dashboardPanel;
+    private BillingManagementPanel billingManagementPanel;
     private JButton activeNavButton;
+    private final java.util.Map<String, JButton> navButtons = new java.util.HashMap<>();
 
     public AdminMainFrame() {
         super("Hotel Reservation System - Admin Panel");
@@ -109,6 +111,8 @@ public class AdminMainFrame extends JFrame {
             setActiveButton(button);
         });
 
+        navButtons.put(cardName, button);
+
         return button;
     }
 
@@ -140,7 +144,9 @@ public class AdminMainFrame extends JFrame {
         contentPanel.add(new ReservationManagementPanel(), CARD_RESERVATIONS);
         contentPanel.add(new RoomManagementPanel(), CARD_ROOMS);
         contentPanel.add(new GuestManagementPanel(), CARD_GUESTS);
-        contentPanel.add(new BillingManagementPanel(), CARD_BILLING);
+        
+        billingManagementPanel = new BillingManagementPanel();
+        contentPanel.add(billingManagementPanel, CARD_BILLING);
 
         return contentPanel;
     }
@@ -150,6 +156,21 @@ public class AdminMainFrame extends JFrame {
             dashboardPanel.refreshStats();
         }
         cardLayout.show(contentPanel, cardName);
+    }
+
+    public void navigateToCard(String cardName) {
+        showCard(cardName);
+        JButton button = navButtons.get(cardName);
+        if (button != null) {
+            setActiveButton(button);
+        }
+    }
+
+    public void navigateToBillingAndShow(int reservationId) {
+        navigateToCard(CARD_BILLING);
+        if (billingManagementPanel != null) {
+            billingManagementPanel.showBillForReservation(reservationId);
+        }
     }
 
     private void handleLogout() {

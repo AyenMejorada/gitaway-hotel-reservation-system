@@ -32,6 +32,12 @@ public class BillingManagementPanel extends JPanel {
     public BillingManagementPanel() {
         initComponents();
         loadActiveBillings();
+        addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentShown(java.awt.event.ComponentEvent e) {
+                refreshCurrentView();
+            }
+        });
     }
 
     private void initComponents() {
@@ -190,6 +196,48 @@ public class BillingManagementPanel extends JPanel {
                     UIUtils.showSuccess(this, "Bill archived successfully.");
                     loadActiveBillings();
                 });
+            }
+        }
+    }
+
+    public void showBillForReservation(int reservationId) {
+        // First load active billings to make sure table is up to date
+        loadActiveBillings();
+
+        // Search for existing bill
+        boolean found = false;
+        for (int i = 0; i < table.getRowCount(); i++) {
+            Object val = tableModel.getValueAt(i, 1); // column 1 is "Reservation ID"
+            if (val instanceof Integer && (Integer) val == reservationId) {
+                table.setRowSelectionInterval(i, i);
+                table.scrollRectToVisible(table.getCellRect(i, 0, true));
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            // Ask user if they want to create a new bill
+            int choice = JOptionPane.showConfirmDialog(this,
+                    "No billing record found for Reservation #" + reservationId + ".\nWould you like to create a new bill now?",
+                    "Create Bill", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+            if (choice == JOptionPane.YES_OPTION) {
+                Billing temp = new Billing();
+                temp.setReservationId(reservationId);
+                BillingFormDialog dialog = new BillingFormDialog(SwingUtilities.getWindowAncestor(this), temp);
+                dialog.setVisible(true);
+                if (dialog.isSaved()) {
+                    loadActiveBillings();
+                    // Try to highlight it now
+                    for (int i = 0; i < table.getRowCount(); i++) {
+                        Object val = tableModel.getValueAt(i, 1);
+                        if (val instanceof Integer && (Integer) val == reservationId) {
+                            table.setRowSelectionInterval(i, i);
+                            table.scrollRectToVisible(table.getCellRect(i, 0, true));
+                            break;
+                        }
+                    }
+                }
             }
         }
     }

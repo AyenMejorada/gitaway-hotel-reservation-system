@@ -173,7 +173,7 @@ public class BillingFormDialog extends JDialog {
             PaymentStatus paymentStatus = (PaymentStatus) paymentStatusCombo.getSelectedItem();
             PaymentMethod paymentMethod = (PaymentMethod) paymentMethodCombo.getSelectedItem();
 
-            if (existingBilling == null) {
+            if (existingBilling == null || existingBilling.getBillId() == 0) {
                 billingService.addBilling(selectedReservation.getReservationId(), additionalCharges, discount, tax,
                         paymentStatus, paymentMethod);
                 UIUtils.showSuccess(this, "Bill created successfully.");

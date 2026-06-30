@@ -140,6 +140,16 @@ public class ReservationManagementPanel extends JPanel {
         dialog.setVisible(true);
         if (dialog.isSaved()) {
             loadActiveReservations();
+            if (dialog.getSavedStatus() == com.hotel.model.ReservationStatus.CHECKED_OUT) {
+                Window win = SwingUtilities.getWindowAncestor(this);
+                if (win instanceof AdminMainFrame) {
+                    List<Reservation> activeRes = reservationService.getAllActiveReservations();
+                    int latestResId = activeRes.stream().mapToInt(Reservation::getReservationId).max().orElse(-1);
+                    if (latestResId > 0) {
+                        ((AdminMainFrame) win).navigateToBillingAndShow(latestResId);
+                    }
+                }
+            }
         }
     }
 
@@ -160,6 +170,12 @@ public class ReservationManagementPanel extends JPanel {
             dialog.setVisible(true);
             if (dialog.isSaved()) {
                 loadActiveReservations();
+                if (dialog.getSavedStatus() == com.hotel.model.ReservationStatus.CHECKED_OUT) {
+                    Window win = SwingUtilities.getWindowAncestor(this);
+                    if (win instanceof AdminMainFrame) {
+                        ((AdminMainFrame) win).navigateToBillingAndShow(reservationId);
+                    }
+                }
             }
         });
     }

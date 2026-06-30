@@ -40,9 +40,15 @@ public class BillingService {
         Validator.requireNonNull(paymentStatus, "Payment status");
         Validator.requireNonNull(paymentMethod, "Payment method");
 
+        BigDecimal roomCharges = reservation.getTotalAmount();
+        BigDecimal subtotal = roomCharges.add(additionalCharges).add(tax);
+        if (discount.compareTo(subtotal) > 0) {
+            throw new ValidationException("Discount cannot exceed the total charges of ₱" + subtotal + ".");
+        }
+
         Billing billing = new Billing();
         billing.setReservationId(reservationId);
-        billing.setRoomCharges(reservation.getTotalAmount());
+        billing.setRoomCharges(roomCharges);
         billing.setAdditionalCharges(additionalCharges);
         billing.setDiscount(discount);
         billing.setTax(tax);
@@ -60,6 +66,12 @@ public class BillingService {
         Validator.requireNonNull(paymentMethod, "Payment method");
 
         Billing existing = getBillingOrThrow(billId);
+        BigDecimal roomCharges = existing.getRoomCharges();
+        BigDecimal subtotal = roomCharges.add(additionalCharges).add(tax);
+        if (discount.compareTo(subtotal) > 0) {
+            throw new ValidationException("Discount cannot exceed the total charges of ₱" + subtotal + ".");
+        }
+
         existing.setAdditionalCharges(additionalCharges);
         existing.setDiscount(discount);
         existing.setTax(tax);
