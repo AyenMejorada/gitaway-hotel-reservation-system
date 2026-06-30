@@ -10,9 +10,9 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 /**
- * Admin dashboard: displays the four headline metrics requested -
- * total rooms, total guests, total reservations, and total revenue -
- * each pulled live from {@link DashboardService}.
+ * Admin dashboard: displays the headline metrics - total rooms, total
+ * guests, total reservations, total revenue, occupied rooms, and
+ * available rooms - each pulled live from {@link DashboardService}.
  */
 public class DashboardPanel extends JPanel {
 
@@ -22,6 +22,8 @@ public class DashboardPanel extends JPanel {
     private JLabel guestsValueLabel;
     private JLabel reservationsValueLabel;
     private JLabel revenueValueLabel;
+    private JLabel occupiedValueLabel;
+    private JLabel availableValueLabel;
 
     public DashboardPanel() {
         initComponents();
@@ -43,7 +45,7 @@ public class DashboardPanel extends JPanel {
 
         add(headerRow, BorderLayout.NORTH);
 
-        JPanel cardsPanel = new JPanel(new GridLayout(2, 2, 24, 24));
+        JPanel cardsPanel = new JPanel(new GridLayout(3, 2, 24, 24));
         cardsPanel.setOpaque(false);
         cardsPanel.setBorder(BorderFactory.createEmptyBorder(24, 0, 0, 0));
 
@@ -51,11 +53,15 @@ public class DashboardPanel extends JPanel {
         guestsValueLabel = new JLabel("0");
         reservationsValueLabel = new JLabel("0");
         revenueValueLabel = new JLabel("₱0.00");
+        occupiedValueLabel = new JLabel("0");
+        availableValueLabel = new JLabel("0");
 
         cardsPanel.add(createStatCard("Total Rooms", roomsValueLabel, new Color(0, 120, 215)));
         cardsPanel.add(createStatCard("Total Guests", guestsValueLabel, new Color(34, 139, 34)));
         cardsPanel.add(createStatCard("Total Reservations", reservationsValueLabel, new Color(218, 165, 32)));
         cardsPanel.add(createStatCard("Total Revenue", revenueValueLabel, new Color(178, 34, 34)));
+        cardsPanel.add(createStatCard("Occupied Rooms", occupiedValueLabel, new Color(155, 89, 182)));
+        cardsPanel.add(createStatCard("Available Rooms", availableValueLabel, new Color(46, 134, 193)));
 
         add(cardsPanel, BorderLayout.CENTER);
     }
@@ -92,6 +98,8 @@ public class DashboardPanel extends JPanel {
             guestsValueLabel.setText(String.valueOf(stats.getTotalGuests()));
             reservationsValueLabel.setText(String.valueOf(stats.getTotalReservations()));
             revenueValueLabel.setText(formatCurrency(stats.getTotalRevenue()));
+            occupiedValueLabel.setText(String.valueOf(stats.getOccupiedRooms()));
+            availableValueLabel.setText(String.valueOf(stats.getAvailableRooms()));
         });
     }
 
