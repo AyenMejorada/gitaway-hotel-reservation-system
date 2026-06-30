@@ -81,6 +81,16 @@ public class RoomService {
         return roomDao.countActiveRooms();
     }
 
+    /**
+     * Counts active (non-archived) rooms matching the given status,
+     * e.g. RoomStatus.OCCUPIED or RoomStatus.AVAILABLE.
+     */
+    public long countByStatus(RoomStatus status) {
+        return getAllActiveRooms().stream()
+                .filter(r -> r.getStatus() == status)
+                .count();
+    }
+
     private void validateRoomFields(String roomNumber, RoomType type, BigDecimal pricePerNight,
                                      RoomStatus status, int capacity) {
         Validator.requireNonBlank(roomNumber, "Room number");
