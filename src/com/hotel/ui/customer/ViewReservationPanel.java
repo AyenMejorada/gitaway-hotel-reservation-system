@@ -726,7 +726,7 @@ public class ViewReservationPanel extends JPanel {
     private void showUpdateDialog(Reservation reservation) {
         JDialog dialog = new JDialog(SwingUtilities.getWindowAncestor(this), "Update Reservation #" + reservation.getReservationId(),
                 Dialog.ModalityType.APPLICATION_MODAL);
-        dialog.setSize(440, 680);
+        dialog.setSize(500, 750);
         dialog.setLocationRelativeTo(this);
         dialog.setResizable(false);
 
@@ -756,39 +756,47 @@ public class ViewReservationPanel extends JPanel {
         detailsPanel.setBackground(Color.WHITE);
         detailsPanel.setBorder(BorderFactory.createCompoundBorder(
             BorderFactory.createLineBorder(new Color(230, 230, 230)),
-            BorderFactory.createEmptyBorder(10, 12, 10, 12)
+            BorderFactory.createEmptyBorder(12, 12, 12, 12)
         ));
         
         GridBagConstraints dGbc = new GridBagConstraints();
         dGbc.fill = GridBagConstraints.HORIZONTAL;
         dGbc.weightx = 1.0;
         dGbc.gridx = 0;
-        dGbc.gridy = 0;
+        int dRow = 0;
         
         JLabel priceLbl = new JLabel("Price per Night: ₱0.00");
         priceLbl.setFont(UIUtils.FONT_BOLD);
         priceLbl.setForeground(UIUtils.PRIMARY_COLOR);
+        dGbc.gridy = dRow++;
+        dGbc.insets = new Insets(0, 0, 4, 0);
         detailsPanel.add(priceLbl, dGbc);
         
-        JLabel capacityLbl = new JLabel("Max Guest Capacity: 0");
+        JLabel capacityLbl = new JLabel("Maximum Capacity: 0 Guests");
         capacityLbl.setFont(UIUtils.FONT_BOLD);
         capacityLbl.setForeground(Color.DARK_GRAY);
-        dGbc.gridy = 1;
-        dGbc.insets = new Insets(4, 0, 0, 0);
+        dGbc.gridy = dRow++;
+        dGbc.insets = new Insets(0, 0, 4, 0);
         detailsPanel.add(capacityLbl, dGbc);
+
+        JLabel descHeaderLbl = new JLabel("Description:");
+        descHeaderLbl.setFont(UIUtils.FONT_BOLD);
+        descHeaderLbl.setForeground(Color.DARK_GRAY);
+        dGbc.gridy = dRow++;
+        dGbc.insets = new Insets(0, 0, 2, 0);
+        detailsPanel.add(descHeaderLbl, dGbc);
         
-        JTextArea descArea = new JTextArea(2, 20);
+        JTextArea descArea = new JTextArea();
         descArea.setEditable(false);
         descArea.setLineWrap(true);
         descArea.setWrapStyleWord(true);
         descArea.setFont(UIUtils.FONT_REGULAR);
         descArea.setBackground(Color.WHITE);
         descArea.setForeground(Color.GRAY);
-        JScrollPane descScroll = new JScrollPane(descArea);
-        descScroll.setBorder(null);
-        dGbc.gridy = 2;
-        dGbc.insets = new Insets(4, 0, 0, 0);
-        detailsPanel.add(descScroll, dGbc);
+        descArea.setBorder(null);
+        dGbc.gridy = dRow++;
+        dGbc.insets = new Insets(0, 0, 0, 0);
+        detailsPanel.add(descArea, dGbc);
         
         gbc.gridy = row++;
         form.add(detailsPanel, gbc);
@@ -815,7 +823,12 @@ public class ViewReservationPanel extends JPanel {
         form.add(boldLabel("Number of Nights (Calculated)"), gbc);
         JTextField nightsField = new JTextField();
         nightsField.setEditable(false);
+        nightsField.setFocusable(false);
         nightsField.setBackground(new Color(240, 240, 240));
+        nightsField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200)),
+            BorderFactory.createEmptyBorder(0, 10, 0, 10)
+        ));
         nightsField.setPreferredSize(new Dimension(0, 36));
         nightsField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
@@ -826,7 +839,12 @@ public class ViewReservationPanel extends JPanel {
         form.add(boldLabel("Total Amount (Calculated)"), gbc);
         JTextField totalAmountField = new JTextField();
         totalAmountField.setEditable(false);
+        totalAmountField.setFocusable(false);
         totalAmountField.setBackground(new Color(240, 240, 240));
+        totalAmountField.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(new Color(200, 200, 200)),
+            BorderFactory.createEmptyBorder(0, 10, 0, 10)
+        ));
         totalAmountField.setPreferredSize(new Dimension(0, 36));
         totalAmountField.setFont(UIUtils.FONT_REGULAR);
         gbc.gridy = row++;
@@ -853,7 +871,7 @@ public class ViewReservationPanel extends JPanel {
             if (selectedType != null) {
                 int capacity = reservationService.getCapacityForType(selectedType);
                 java.math.BigDecimal price = reservationService.getPriceForType(selectedType);
-                capacityLbl.setText("Max Guest Capacity: " + capacity);
+                capacityLbl.setText("Maximum Capacity: " + capacity + " Guests");
                 priceLbl.setText(String.format("Price per Night: ₱%,.2f", price));
                 
                 String desc = roomService.getAllActiveRooms().stream()
@@ -886,8 +904,25 @@ public class ViewReservationPanel extends JPanel {
             totalAmountField.setText("₱0.00");
         };
 
-        // Hook up listeners for calculations
-        roomTypeCombo.addActionListener(e -> updateCalcs.run());
+        // Hook up listeners for calculations and immediate validation
+        roomTypeCombo.addActionListener(e -> {
+            updateCalcs.run();
+            RoomType selectedType = (RoomType) roomTypeCombo.getSelectedItem();
+            if (selectedType != null) {
+                int capacity = reservationService.getCapacityForType(selectedType);
+                String guestText = numGuestsField.getText().trim();
+                if (!guestText.isEmpty()) {
+                    try {
+                        int numGuests = Integer.parseInt(guestText);
+                        if (numGuests > capacity) {
+                            UIUtils.showError(dialog, "The selected room type accommodates a maximum of " + capacity + " guests.");
+                        }
+                    } catch (NumberFormatException ex) {
+                        // ignore
+                    }
+                }
+            }
+        });
         
         checkInPicker.addChangeListener(() -> {
             LocalDate inDate = checkInPicker.getDate();
@@ -949,13 +984,18 @@ public class ViewReservationPanel extends JPanel {
                 }
 
                 // Guest count validations
-                int numGuests = Validator.parseInt(numGuestsField.getText(), "Number of guests");
+                int numGuests;
+                try {
+                    numGuests = Integer.parseInt(numGuestsField.getText().trim());
+                } catch (NumberFormatException ex) {
+                    throw new ValidationException("Number of guests must be a valid whole number.");
+                }
                 if (numGuests <= 0) {
                     throw new ValidationException("Number of guests must be greater than zero.");
                 }
                 int capacity = reservationService.getCapacityForType(selectedType);
                 if (numGuests > capacity) {
-                    throw new ValidationException("Number of guests exceeds the room type's maximum capacity of " + capacity + ".");
+                    throw new ValidationException("The selected room type accommodates a maximum of " + capacity + " guests.");
                 }
 
                 reservationService.updateReservation(reservation.getReservationId(), selectedType, 0,
