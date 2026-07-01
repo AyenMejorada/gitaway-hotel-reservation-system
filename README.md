@@ -130,7 +130,7 @@ The application connects to a MySQL instance hosted locally using the following 
 2. **MySQL Server**: Ensure MySQL Server is running locally on port `3306`.
 3. **Database Configuration**:
    - Check the username and password in [DatabaseConnection.java](file:///c:/Users/mejor/Desktop/Latest/gitaway-hotel-reservation-system/src/com/gitaway/database/DatabaseConnection.java#L15-L16). Modify these lines to match your local MySQL configuration.
-   - By default, the database connector uses `root` as user and `M@rd3n4tu$110206` as password.
+   - By default, the database connector uses `root` as user and `[insert your MySQL password]` as password.
 
 ### Launching the Application
 Execute the batch script `run.bat` in the root folder. The script will perform the following actions:
