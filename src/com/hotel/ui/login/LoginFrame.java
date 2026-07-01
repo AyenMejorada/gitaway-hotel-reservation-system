@@ -12,15 +12,16 @@ import com.hotel.ui.customer.CustomerMainFrame;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.KeyAdapter;
+import java.awt.event.KeyEvent;
 
 /**
  * Login screen for the Hotel Reservation System.
- * <p>
- * Enforces a maximum of {@link AuthService#MAX_ATTEMPTS} failed login attempts
- * (delegated to {@link AuthService}); once exceeded, the login button is
- * disabled for that session to prevent further attempts.
+ * Redesigned for a clean, professional, minimalistic desktop application look.
  */
 public class LoginFrame extends JFrame {
 
@@ -28,6 +29,7 @@ public class LoginFrame extends JFrame {
 
     private JTextField usernameField;
     private JPasswordField passwordField;
+    private JCheckBox showPasswordCheck;
     private JLabel statusLabel;
     private JButton loginButton;
     private JButton exitButton;
@@ -36,177 +38,232 @@ public class LoginFrame extends JFrame {
     public LoginFrame() {
         super("Hotel Reservation System - Login");
         initComponents();
+        
+        // Auto-focus on username field
+        SwingUtilities.invokeLater(() -> usernameField.requestFocusInWindow());
     }
 
     private void initComponents() {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(850, 500);
-        setMinimumSize(new Dimension(700, 450));
+        setMinimumSize(new Dimension(850, 500));
         setLocationRelativeTo(null);
         setResizable(false);
         setLayout(new BorderLayout());
 
-        //---------------- LEFT PANEL ----------------//
+        //---------------- LEFT PANEL (Branding) ----------------//
         JPanel leftPanel = new JPanel();
-        leftPanel.setPreferredSize(new Dimension(320, 500));
+        leftPanel.setPreferredSize(new Dimension(350, 500));
         leftPanel.setBackground(UIUtils.PRIMARY_COLOR);
         leftPanel.setLayout(new BoxLayout(leftPanel, BoxLayout.Y_AXIS));
 
-        leftPanel.add(Box.createVerticalGlue());
+        // Space at the top
+        leftPanel.add(Box.createVerticalStrut(40));
 
+        // Centered near the top
         JLabel lblIcon = new JLabel("\uD83C\uDFE8");
-        lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 70));
+        lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 64));
         lblIcon.setForeground(Color.WHITE);
         lblIcon.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel lblHotel = new JLabel("GitAway: HOTEL");
-        lblHotel.setForeground(Color.WHITE);
-        lblHotel.setFont(new Font("Segoe UI", Font.BOLD, 34));
-        lblHotel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel lblSystem = new JLabel("RESERVATION");
-        lblSystem.setForeground(Color.WHITE);
-        lblSystem.setFont(new Font("Segoe UI", Font.BOLD, 28));
-        lblSystem.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel lblManagement = new JLabel("MANAGEMENT SYSTEM");
-        lblManagement.setForeground(new Color(220, 230, 245));
-        lblManagement.setFont(new Font("Segoe UI", Font.PLAIN, 18));
-        lblManagement.setAlignmentX(Component.CENTER_ALIGNMENT);
-
         leftPanel.add(lblIcon);
-        leftPanel.add(Box.createVerticalStrut(20));
+        
+        // Vertical glue to center the rest of the text elements vertically
+        leftPanel.add(Box.createVerticalGlue());
+
+        JLabel lblHotel = new JLabel("GitAway");
+        lblHotel.setForeground(Color.WHITE);
+        lblHotel.setFont(new Font("Segoe UI", Font.BOLD, 36));
+        lblHotel.setAlignmentX(Component.CENTER_ALIGNMENT);
         leftPanel.add(lblHotel);
+
+        leftPanel.add(Box.createVerticalStrut(16)); // Generous spacing
+
+        JLabel lblSystem = new JLabel("HOTEL RESERVATION SYSTEM");
+        lblSystem.setForeground(new Color(190, 210, 240));
+        lblSystem.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        lblSystem.setAlignmentX(Component.CENTER_ALIGNMENT);
         leftPanel.add(lblSystem);
-        leftPanel.add(Box.createVerticalStrut(10));
+
+        leftPanel.add(Box.createVerticalStrut(20)); // Generous spacing
+
+        JLabel lblManagement = new JLabel("Manage Reservations with Ease");
+        lblManagement.setForeground(new Color(220, 230, 245));
+        lblManagement.setFont(new Font("Segoe UI", Font.PLAIN, 14)); // Regular plain text for tagline
+        lblManagement.setAlignmentX(Component.CENTER_ALIGNMENT);
         leftPanel.add(lblManagement);
 
         leftPanel.add(Box.createVerticalGlue());
 
-        //---------------- RIGHT PANEL ----------------//
+        //---------------- RIGHT PANEL (Login Form) ----------------//
         JPanel rightPanel = new JPanel();
         rightPanel.setBackground(Color.WHITE);
-        rightPanel.setBorder(new EmptyBorder(50, 60, 50, 60));
-        rightPanel.setLayout(new BoxLayout(rightPanel, BoxLayout.Y_AXIS));
+        rightPanel.setBorder(new EmptyBorder(40, 50, 40, 50));
+        rightPanel.setLayout(new GridBagLayout());
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.weightx = 1.0;
+        gbc.gridx = 0;
+        int row = 0;
 
+        // Welcome Header (Large bold heading)
         JLabel lblWelcome = new JLabel("Welcome Back");
-        lblWelcome.setFont(new Font("Segoe UI", Font.BOLD, 30));
-        lblWelcome.setAlignmentX(Component.LEFT_ALIGNMENT);
+        lblWelcome.setFont(new Font("Segoe UI", Font.BOLD, 28));
+        gbc.gridy = row++;
+        gbc.insets = new Insets(0, 0, 4, 0);
+        rightPanel.add(lblWelcome, gbc);
 
-        JLabel lblLogin = new JLabel("Please sign in to continue");
-        lblLogin.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        lblLogin.setForeground(Color.GRAY);
-        lblLogin.setAlignmentX(Component.LEFT_ALIGNMENT);
+        // Subtitle (Medium subtitle, regular text)
+        JLabel lblInstruction = new JLabel("Sign in to access your account.");
+        lblInstruction.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        lblInstruction.setForeground(Color.GRAY);
+        gbc.gridy = row++;
+        gbc.insets = new Insets(0, 0, 24, 0);
+        rightPanel.add(lblInstruction, gbc);
 
-        rightPanel.add(lblWelcome);
-        rightPanel.add(Box.createVerticalStrut(5));
-        rightPanel.add(lblLogin);
-        rightPanel.add(Box.createVerticalStrut(40));
-
+        // Username Label (Bold field label)
         JLabel lblUser = new JLabel("Username");
-        lblUser.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        lblUser.setAlignmentX(Component.LEFT_ALIGNMENT);
+        lblUser.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        gbc.gridy = row++;
+        gbc.insets = new Insets(0, 0, 6, 0);
+        rightPanel.add(lblUser, gbc);
 
+        // Username Field (No icons inside, clean border)
         usernameField = new JTextField();
-        usernameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        usernameField.setPreferredSize(new Dimension(260, 40));
-        usernameField.setMinimumSize(new Dimension(260, 40));
-        usernameField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        usernameField.setAlignmentX(Component.LEFT_ALIGNMENT);
+        usernameField.setPreferredSize(new Dimension(300, 38));
+        usernameField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        usernameField.setBorder(BorderFactory.createCompoundBorder(
+                new LineBorder(new Color(200, 200, 200), 1, true),
+                BorderFactory.createEmptyBorder(0, 10, 0, 10)
+        ));
+        gbc.gridy = row++;
+        gbc.insets = new Insets(0, 0, 16, 0);
+        rightPanel.add(usernameField, gbc);
 
+        // Password Label (Bold field label)
         JLabel lblPass = new JLabel("Password");
-        lblPass.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        lblPass.setAlignmentX(Component.LEFT_ALIGNMENT);
+        lblPass.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        gbc.gridy = row++;
+        gbc.insets = new Insets(0, 0, 6, 0);
+        rightPanel.add(lblPass, gbc);
 
+        // Password Field (No icons inside, clean border)
         passwordField = new JPasswordField();
-        passwordField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        passwordField.setPreferredSize(new Dimension(260, 40));
-        passwordField.setMinimumSize(new Dimension(260, 40));
-        passwordField.setFont(new Font("Segoe UI", Font.PLAIN, 16));
-        passwordField.setAlignmentX(Component.LEFT_ALIGNMENT);
+        passwordField.setPreferredSize(new Dimension(300, 38));
+        passwordField.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        passwordField.setBorder(BorderFactory.createCompoundBorder(
+                new LineBorder(new Color(200, 200, 200), 1, true),
+                BorderFactory.createEmptyBorder(0, 10, 0, 10)
+        ));
+        gbc.gridy = row++;
+        gbc.insets = new Insets(0, 0, 8, 0);
+        rightPanel.add(passwordField, gbc);
 
-        rightPanel.add(lblUser);
-        rightPanel.add(Box.createVerticalStrut(5));
-        rightPanel.add(usernameField);
-        rightPanel.add(Box.createVerticalStrut(20));
+        // Show Password checkbox (Regular text)
+        showPasswordCheck = new JCheckBox("Show Password");
+        showPasswordCheck.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        showPasswordCheck.setBackground(Color.WHITE);
+        showPasswordCheck.setFocusPainted(false);
+        showPasswordCheck.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (showPasswordCheck.isSelected()) {
+                    passwordField.setEchoChar((char) 0);
+                } else {
+                    passwordField.setEchoChar('•');
+                }
+            }
+        });
+        gbc.gridy = row++;
+        gbc.insets = new Insets(0, 0, 16, 0);
+        rightPanel.add(showPasswordCheck, gbc);
 
-        rightPanel.add(lblPass);
-        rightPanel.add(Box.createVerticalStrut(5));
-        rightPanel.add(passwordField);
-        rightPanel.add(Box.createVerticalStrut(20));
-
+        // Status Error Label
         statusLabel = new JLabel(" ");
-        statusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        statusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         statusLabel.setForeground(UIUtils.DANGER_COLOR);
-        statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        rightPanel.add(statusLabel);
-        rightPanel.add(Box.createVerticalStrut(20));
+        gbc.gridy = row++;
+        gbc.insets = new Insets(0, 0, 12, 0);
+        rightPanel.add(statusLabel, gbc);
 
-        //---------------- BUTTONS ----------------//
-        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 10, 0));
-        buttonPanel.setBackground(Color.WHITE);
-        buttonPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 45));
-        buttonPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        // Buttons
+        JPanel buttonPanel = new JPanel(new GridLayout(1, 2, 12, 0));
+        buttonPanel.setOpaque(false);
 
+        // Sign In button (Primary Action using existing blue color, matching height/width of Exit)
         loginButton = UIUtils.createStyledButton("Sign In", UIUtils.ACCENT_COLOR);
-        loginButton.setForeground(Color.WHITE);
-        loginButton.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        loginButton.setFocusPainted(false);
+        loginButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        loginButton.setPreferredSize(new Dimension(140, 38));
 
+        // Exit button (Neutral gray, matching height/width of Sign In)
         exitButton = new JButton("Exit");
-        exitButton.setBackground(Color.LIGHT_GRAY);
-        exitButton.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        exitButton.setBackground(new Color(220, 220, 220));
+        exitButton.setForeground(Color.DARK_GRAY);
+        exitButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
         exitButton.setFocusPainted(false);
+        exitButton.setBorderPainted(false);
+        exitButton.setOpaque(true);
+        exitButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        exitButton.setPreferredSize(new Dimension(140, 38));
 
         buttonPanel.add(loginButton);
         buttonPanel.add(exitButton);
+        gbc.gridy = row++;
+        gbc.insets = new Insets(0, 0, 16, 0);
+        rightPanel.add(buttonPanel, gbc);
 
-        rightPanel.add(buttonPanel);
-        rightPanel.add(Box.createVerticalStrut(10));
-
-        // Sign Up button
+        // Create Account Link (Regular text except the clickable link font style)
         JPanel signUpPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        signUpPanel.setBackground(Color.WHITE);
-        signUpPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        signUpPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JButton signUpButton = new JButton("Sign Up as New Guest");
-        signUpButton.setFont(new Font("Segoe UI", Font.BOLD | Font.ITALIC, 14));
+        signUpPanel.setOpaque(false);
+        JButton signUpButton = new JButton("New Guest? Create an Account");
+        signUpButton.setFont(new Font("Segoe UI", Font.BOLD, 12));
         signUpButton.setForeground(UIUtils.ACCENT_COLOR);
         signUpButton.setContentAreaFilled(false);
         signUpButton.setBorderPainted(false);
         signUpButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         signUpButton.addActionListener(e -> handleSignUp());
         signUpPanel.add(signUpButton);
-
-        rightPanel.add(signUpPanel);
-        rightPanel.add(Box.createVerticalStrut(10));
-
-        // Sample credentials helper text
-        JLabel lblHelp = new JLabel("<html><center>"
-                + "<hr width='100%' style='border-color:#F0F0F0;'>"
-                + "<font size='2' color='#888888'><b>Sample Guest Account</b><br>"
-                + "Username: guest &nbsp;&nbsp; Password: guest123<br><br>"
-                + "<b>Sample Admin Account</b><br>"
-                + "Username: admin &nbsp;&nbsp; Password: admin123</font>"
-                + "</center></html>");
-        lblHelp.setAlignmentX(Component.LEFT_ALIGNMENT);
-        lblHelp.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
-        rightPanel.add(lblHelp);
+        gbc.gridy = row++;
+        gbc.insets = new Insets(0, 0, 0, 0);
+        rightPanel.add(signUpPanel, gbc);
 
         add(leftPanel, BorderLayout.WEST);
         add(rightPanel, BorderLayout.CENTER);
 
         //---------------- LISTENERS ----------------//
-        loginButton.addActionListener(this::handleLogin);
-        passwordField.addActionListener(this::handleLogin);
-        usernameField.addActionListener(e -> passwordField.requestFocus());
+        ActionListener loginAction = this::handleLogin;
+        loginButton.addActionListener(loginAction);
+        
+        // Enter triggers Sign In on both fields
+        usernameField.addActionListener(loginAction);
+        passwordField.addActionListener(loginAction);
+        
+        // Register default button on root pane so pressing Enter triggers the Sign In button
+        SwingUtilities.invokeLater(() -> {
+            if (getRootPane() != null) {
+                getRootPane().setDefaultButton(loginButton);
+            }
+        });
+
         exitButton.addActionListener(e -> System.exit(0));
     }
 
     private void handleLogin(ActionEvent e) {
-        String username = usernameField.getText();
-        String password = new String(passwordField.getPassword());
+        String username = usernameField.getText().trim();
+        String password = new String(passwordField.getPassword()).trim();
+
+        if (username.isEmpty()) {
+            statusLabel.setForeground(UIUtils.DANGER_COLOR);
+            statusLabel.setText("Username is required.");
+            usernameField.requestFocusInWindow();
+            return;
+        }
+        if (password.isEmpty()) {
+            statusLabel.setForeground(UIUtils.DANGER_COLOR);
+            statusLabel.setText("Password is required.");
+            passwordField.requestFocusInWindow();
+            return;
+        }
 
         try {
             User user = authService.login(username, password);
@@ -241,7 +298,7 @@ public class LoginFrame extends JFrame {
         if (dialog.isRegistrationSuccessful()) {
             usernameField.setText(dialog.getRegisteredUsername());
             passwordField.setText("");
-            passwordField.requestFocus();
+            passwordField.requestFocusInWindow();
             statusLabel.setText(" ");
         }
     }
