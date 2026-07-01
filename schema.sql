@@ -81,19 +81,16 @@ CREATE TABLE IF NOT EXISTS reservations (
     CONSTRAINT fk_res_room  FOREIGN KEY (room_id)  REFERENCES rooms(room_id)
 );
 
--- ------------------------------------------------------------
--- Billing table
--- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS billing (
     bill_id          INT AUTO_INCREMENT PRIMARY KEY,
-    reservation_id    INT NOT NULL,
+    reservation_id    INT NOT NULL UNIQUE,
+    billing_date      DATE NOT NULL,
     room_charges      DECIMAL(10,2) NOT NULL DEFAULT 0,
     additional_charges DECIMAL(10,2) NOT NULL DEFAULT 0,
     discount          DECIMAL(10,2) NOT NULL DEFAULT 0,
     tax               DECIMAL(10,2) NOT NULL DEFAULT 0,
     total_amount      DECIMAL(10,2) NOT NULL DEFAULT 0,
-    payment_status    ENUM('UNPAID', 'PARTIAL', 'PAID') NOT NULL DEFAULT 'UNPAID',
-    payment_method    ENUM('CASH', 'CARD', 'GCASH', 'BANK_TRANSFER', 'NONE') NOT NULL DEFAULT 'NONE',
+    bill_status       ENUM('Generated', 'Pending Settlement', 'Settled', 'Cancelled') NOT NULL DEFAULT 'Generated',
     is_deleted        TINYINT(1)   NOT NULL DEFAULT 0,
     created_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
     updated_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

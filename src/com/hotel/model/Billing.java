@@ -1,24 +1,25 @@
 package com.hotel.model;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
  * Represents the bill associated with a single reservation.
- * Display-only fields (guestName, roomNumber) are populated by joined
+ * Display-only fields (guestName, roomNumber, roomType, checkInDate, checkOutDate, numberOfNights) are populated by joined
  * DAO queries for convenience in UI tables.
  */
 public class Billing {
 
     private int billId;
     private int reservationId;
+    private LocalDate billingDate;
     private BigDecimal roomCharges;
     private BigDecimal additionalCharges;
     private BigDecimal discount;
     private BigDecimal tax;
     private BigDecimal totalAmount;
-    private PaymentStatus paymentStatus;
-    private PaymentMethod paymentMethod;
+    private BillStatus billStatus;
     private boolean deleted;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -26,15 +27,19 @@ public class Billing {
     // Display-only fields populated by joined queries
     private String guestName;
     private String roomNumber;
+    private RoomType roomType;
+    private LocalDate checkInDate;
+    private LocalDate checkOutDate;
+    private int numberOfNights;
 
     public Billing() {
+        this.billingDate = LocalDate.now();
         this.roomCharges = BigDecimal.ZERO;
         this.additionalCharges = BigDecimal.ZERO;
         this.discount = BigDecimal.ZERO;
         this.tax = BigDecimal.ZERO;
         this.totalAmount = BigDecimal.ZERO;
-        this.paymentStatus = PaymentStatus.UNPAID;
-        this.paymentMethod = PaymentMethod.NONE;
+        this.billStatus = BillStatus.GENERATED;
     }
 
     public int getBillId() {
@@ -93,20 +98,52 @@ public class Billing {
         this.totalAmount = totalAmount;
     }
 
-    public PaymentStatus getPaymentStatus() {
-        return paymentStatus;
+    public LocalDate getBillingDate() {
+        return billingDate;
     }
 
-    public void setPaymentStatus(PaymentStatus paymentStatus) {
-        this.paymentStatus = paymentStatus;
+    public void setBillingDate(LocalDate billingDate) {
+        this.billingDate = billingDate;
     }
 
-    public PaymentMethod getPaymentMethod() {
-        return paymentMethod;
+    public BillStatus getBillStatus() {
+        return billStatus;
     }
 
-    public void setPaymentMethod(PaymentMethod paymentMethod) {
-        this.paymentMethod = paymentMethod;
+    public void setBillStatus(BillStatus billStatus) {
+        this.billStatus = billStatus;
+    }
+
+    public RoomType getRoomType() {
+        return roomType;
+    }
+
+    public void setRoomType(RoomType roomType) {
+        this.roomType = roomType;
+    }
+
+    public LocalDate getCheckInDate() {
+        return checkInDate;
+    }
+
+    public void setCheckInDate(LocalDate checkInDate) {
+        this.checkInDate = checkInDate;
+    }
+
+    public LocalDate getCheckOutDate() {
+        return checkOutDate;
+    }
+
+    public void setCheckOutDate(LocalDate checkOutDate) {
+        this.checkOutDate = checkOutDate;
+    }
+
+    public int getNumberOfNights() {
+        return numberOfNights;
+    }
+
+    public void setNumberOfNights(int numberOfNights) {
+        this.numberOfNights = numberOfNights;
     }
 
     public boolean isDeleted() {

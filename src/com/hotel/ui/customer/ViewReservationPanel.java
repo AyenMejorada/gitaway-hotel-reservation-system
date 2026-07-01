@@ -668,7 +668,7 @@ public class ViewReservationPanel extends JPanel {
 
         UIUtils.runSafely(this, () -> {
             billingService.findByReservationId(r.getReservationId()).ifPresentOrElse(
-                b -> detailPaymentVal.setText(b.getPaymentStatus().name().replace("_", " ")),
+                b -> detailPaymentVal.setText(b.getBillStatus().getDisplayName()),
                 () -> detailPaymentVal.setText("UNPAID")
             );
         });

@@ -11,6 +11,7 @@ import com.hotel.model.Reservation;
 import com.hotel.model.ReservationStatus;
 import com.hotel.model.Room;
 import com.hotel.model.RoomStatus;
+import com.hotel.service.BillingService;
 import com.hotel.util.Validator;
 
 import java.math.BigDecimal;
@@ -27,15 +28,18 @@ public class ReservationService {
 
     private final ReservationDao reservationDao;
     private final RoomDao roomDao;
+    private final BillingService billingService;
 
     public ReservationService() {
         this.reservationDao = new ReservationDaoImpl();
         this.roomDao = new RoomDaoImpl();
+        this.billingService = new BillingService();
     }
 
     public ReservationService(ReservationDao reservationDao, RoomDao roomDao) {
         this.reservationDao = reservationDao;
         this.roomDao = roomDao;
+        this.billingService = new BillingService();
     }
 
     public BigDecimal getPriceForType(com.hotel.model.RoomType type) {
@@ -255,6 +259,10 @@ public class ReservationService {
                 if (oldRoomId > 0 && (oldStatus == ReservationStatus.CHECKED_IN || oldStatus == ReservationStatus.CONFIRMED)) {
                     updateRoomStatus(oldRoomId, RoomStatus.AVAILABLE);
                 }
+            }
+
+            if (status == ReservationStatus.CHECKED_OUT) {
+                billingService.generateBillForReservation(reservationId);
             }
 
             TransactionManager.commit();

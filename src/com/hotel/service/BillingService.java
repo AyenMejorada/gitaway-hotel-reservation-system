@@ -7,12 +7,12 @@ import com.hotel.dao.impl.ReservationDaoImpl;
 import com.hotel.exception.RecordNotFoundException;
 import com.hotel.exception.ValidationException;
 import com.hotel.model.Billing;
-import com.hotel.model.PaymentMethod;
-import com.hotel.model.PaymentStatus;
+import com.hotel.model.BillStatus;
 import com.hotel.model.Reservation;
 import com.hotel.util.Validator;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,40 +31,38 @@ public class BillingService {
         this.reservationDao = reservationDao;
     }
 
-    public Billing addBilling(int reservationId, BigDecimal additionalCharges, BigDecimal discount,
-            BigDecimal tax, PaymentStatus paymentStatus, PaymentMethod paymentMethod) {
-        Reservation reservation = reservationDao.findById(reservationId)
-                .orElseThrow(
-                        () -> new RecordNotFoundException("Reservation with id " + reservationId + " was not found."));
+    /**
+     * Automatically generates a billing record when a reservation reaches the CHECKED OUT status.
+     * Prevents duplicate bill generation.
+     */
+    public Billing generateBillForReservation(int reservationId) {
+        Optional<Billing> existing = billingDao.findByReservationId(reservationId);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
 
-        validateAmounts(additionalCharges, discount, tax);
-        Validator.requireNonNull(paymentStatus, "Payment status");
-        Validator.requireNonNull(paymentMethod, "Payment method");
+        Reservation reservation = reservationDao.findById(reservationId)
+                .orElseThrow(() -> new RecordNotFoundException("Reservation with id " + reservationId + " was not found."));
 
         BigDecimal roomCharges = reservation.getTotalAmount();
-        BigDecimal subtotal = roomCharges.add(additionalCharges).add(tax);
-        if (discount.compareTo(subtotal) > 0) {
-            throw new ValidationException("Discount cannot exceed the total charges of ₱" + subtotal + ".");
-        }
 
         Billing billing = new Billing();
         billing.setReservationId(reservationId);
+        billing.setBillingDate(LocalDate.now());
         billing.setRoomCharges(roomCharges);
-        billing.setAdditionalCharges(additionalCharges);
-        billing.setDiscount(discount);
-        billing.setTax(tax);
-        billing.setPaymentStatus(paymentStatus);
-        billing.setPaymentMethod(paymentMethod);
+        billing.setAdditionalCharges(BigDecimal.ZERO);
+        billing.setDiscount(BigDecimal.ZERO);
+        billing.setTax(BigDecimal.ZERO);
+        billing.setBillStatus(BillStatus.GENERATED);
         billing.recalculateTotal();
 
         return billingDao.create(billing);
     }
 
     public void updateBilling(int billId, BigDecimal additionalCharges, BigDecimal discount, BigDecimal tax,
-            PaymentStatus paymentStatus, PaymentMethod paymentMethod) {
+            BillStatus billStatus) {
         validateAmounts(additionalCharges, discount, tax);
-        Validator.requireNonNull(paymentStatus, "Payment status");
-        Validator.requireNonNull(paymentMethod, "Payment method");
+        Validator.requireNonNull(billStatus, "Bill status");
 
         Billing existing = getBillingOrThrow(billId);
         BigDecimal roomCharges = existing.getRoomCharges();
@@ -76,8 +74,7 @@ public class BillingService {
         existing.setAdditionalCharges(additionalCharges);
         existing.setDiscount(discount);
         existing.setTax(tax);
-        existing.setPaymentStatus(paymentStatus);
-        existing.setPaymentMethod(paymentMethod);
+        existing.setBillStatus(billStatus);
         existing.recalculateTotal();
 
         billingDao.update(existing);

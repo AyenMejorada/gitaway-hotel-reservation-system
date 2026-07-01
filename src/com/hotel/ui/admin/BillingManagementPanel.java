@@ -7,15 +7,17 @@ import com.hotel.ui.common.ReadOnlyTableModel;
 import com.hotel.ui.common.UIUtils;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import java.awt.*;
+import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Admin screen for managing billing records: add, edit, soft-delete (archive),
- * view archived bills (with restore option), and refresh. The table shows
- * full joined details (guest name, room number) for every bill in the database.
+ * Admin screen for reviewing, managing, and printing billing records.
+ * Generating bills is automated and does not allow manual creation from here.
  */
 public class BillingManagementPanel extends JPanel {
 
@@ -31,8 +33,9 @@ public class BillingManagementPanel extends JPanel {
     private List<Billing> allBillings = new ArrayList<>();
 
     private static final String[] COLUMNS = {
-            "Bill ID", "Reservation ID", "Guest", "Room", "Room Charges", "Additional",
-            "Discount", "Tax", "Total", "Payment Status", "Payment Method"
+            "Bill ID", "Reservation ID", "Guest Name", "Room Number", "Room Type", 
+            "Room Charges", "Additional Charges", "Discount", "Tax", "Total Amount", 
+            "Bill Status", "Billing Date"
     };
 
     public BillingManagementPanel() {
@@ -59,20 +62,24 @@ public class BillingManagementPanel extends JPanel {
         JPanel buttonsRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         buttonsRow.setOpaque(false);
 
-        JButton addButton = UIUtils.createStyledButton("Add Bill", UIUtils.SUCCESS_COLOR);
-        addButton.addActionListener(e -> handleAdd());
+        JButton viewDetailsButton = UIUtils.createStyledButton("View Details", UIUtils.PRIMARY_COLOR);
+        viewDetailsButton.addActionListener(e -> handleViewDetails());
 
-        JButton editButton = UIUtils.createStyledButton("Edit", UIUtils.ACCENT_COLOR);
+        JButton editButton = UIUtils.createStyledButton("Edit Charges", UIUtils.ACCENT_COLOR);
         editButton.addActionListener(e -> handleEdit());
 
-        JButton deleteButton = UIUtils.createStyledButton("Delete", UIUtils.DANGER_COLOR);
+        JButton printButton = UIUtils.createStyledButton("Print Invoice", new Color(41, 128, 185));
+        printButton.addActionListener(e -> handlePrintInvoice());
+
+        JButton deleteButton = UIUtils.createStyledButton("Archive", UIUtils.DANGER_COLOR);
         deleteButton.addActionListener(e -> handleDelete());
 
         toggleArchiveButton = UIUtils.createStyledButton("View Archived", UIUtils.PRIMARY_COLOR);
         toggleArchiveButton.addActionListener(e -> toggleArchivedView());
 
-        buttonsRow.add(addButton);
+        buttonsRow.add(viewDetailsButton);
         buttonsRow.add(editButton);
+        buttonsRow.add(printButton);
         buttonsRow.add(deleteButton);
         buttonsRow.add(toggleArchiveButton);
         headerRow.add(buttonsRow, BorderLayout.EAST);
@@ -116,7 +123,7 @@ public class BillingManagementPanel extends JPanel {
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                     g2.setColor(Color.GRAY);
                     g2.setFont(UIUtils.FONT_HEADER);
-                    String text = "No billing records available. (Billing records will appear after reservations are completed.)";
+                    String text = "No billing records available. (Bills are generated automatically when stays check out.)";
                     FontMetrics fm = g2.getFontMetrics();
                     int x = (getWidth() - fm.stringWidth(text)) / 2;
                     int y = getHeight() / 2;
@@ -158,8 +165,8 @@ public class BillingManagementPanel extends JPanel {
                 String guestName = b.getGuestName() == null ? "" : b.getGuestName().toLowerCase();
 
                 if (!billIdStr.contains(query)
-                        && !resIdStr.contains(query)
-                        && !guestName.contains(query)) {
+                         && !resIdStr.contains(query)
+                         && !guestName.contains(query)) {
                     keep = false;
                 }
             }
@@ -168,9 +175,7 @@ public class BillingManagementPanel extends JPanel {
             }
         }
 
-        // Sort by Bill ID Ascending
         filtered.sort(java.util.Comparator.comparingInt(Billing::getBillId));
-
         populateTable(filtered);
     }
 
@@ -182,13 +187,14 @@ public class BillingManagementPanel extends JPanel {
                     b.getReservationId(),
                     b.getGuestName(),
                     b.getRoomNumber(),
+                    b.getRoomType(),
                     String.format("₱%,.2f", b.getRoomCharges()),
                     String.format("₱%,.2f", b.getAdditionalCharges()),
                     String.format("₱%,.2f", b.getDiscount()),
                     String.format("₱%,.2f", b.getTax()),
                     String.format("₱%,.2f", b.getTotalAmount()),
-                    b.getPaymentStatus(),
-                    b.getPaymentMethod()
+                    b.getBillStatus().getDisplayName(),
+                    b.getBillingDate() != null ? b.getBillingDate().toString() : "N/A"
             });
         }
         UIUtils.formatTableColumns(table);
@@ -215,12 +221,90 @@ public class BillingManagementPanel extends JPanel {
         }
     }
 
-    private void handleAdd() {
-        BillingFormDialog dialog = new BillingFormDialog(SwingUtilities.getWindowAncestor(this), null);
-        dialog.setVisible(true);
-        if (dialog.isSaved()) {
-            loadActiveBillings();
+    private void handleViewDetails() {
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            UIUtils.showInfo(this, "Please select a bill to view.");
+            return;
         }
+        int billId = (int) tableModel.getValueAt(row, 0);
+        UIUtils.runSafely(this, () -> {
+            Billing billing = billingService.getBillingOrThrow(billId);
+            showDetailsModal(billing);
+        });
+    }
+
+    private void showDetailsModal(Billing b) {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Billing Details - Bill #" + b.getBillId(), true);
+        dialog.setSize(480, 500);
+        dialog.setLocationRelativeTo(this);
+        dialog.setLayout(new BorderLayout());
+
+        JPanel mainPanel = new JPanel(new GridLayout(0, 2, 8, 12));
+        mainPanel.setBorder(new EmptyBorder(24, 24, 24, 24));
+        mainPanel.setBackground(Color.WHITE);
+
+        mainPanel.add(new JLabel("Bill ID:"));
+        mainPanel.add(new JLabel(String.valueOf(b.getBillId())));
+
+        mainPanel.add(new JLabel("Reservation ID:"));
+        mainPanel.add(new JLabel(String.valueOf(b.getReservationId())));
+
+        mainPanel.add(new JLabel("Guest Name:"));
+        mainPanel.add(new JLabel(b.getGuestName()));
+
+        mainPanel.add(new JLabel("Room Number:"));
+        mainPanel.add(new JLabel(b.getRoomNumber()));
+
+        mainPanel.add(new JLabel("Room Type:"));
+        mainPanel.add(new JLabel(String.valueOf(b.getRoomType())));
+
+        mainPanel.add(new JLabel("Check-in Date:"));
+        mainPanel.add(new JLabel(b.getCheckInDate() != null ? b.getCheckInDate().toString() : "N/A"));
+
+        mainPanel.add(new JLabel("Check-out Date:"));
+        mainPanel.add(new JLabel(b.getCheckOutDate() != null ? b.getCheckOutDate().toString() : "N/A"));
+
+        mainPanel.add(new JLabel("Number of Nights:"));
+        mainPanel.add(new JLabel(String.valueOf(b.getNumberOfNights())));
+
+        mainPanel.add(new JLabel("Room Charges:"));
+        mainPanel.add(new JLabel(String.format("₱%,.2f", b.getRoomCharges())));
+
+        mainPanel.add(new JLabel("Additional Charges:"));
+        mainPanel.add(new JLabel(String.format("₱%,.2f", b.getAdditionalCharges())));
+
+        mainPanel.add(new JLabel("Discount:"));
+        mainPanel.add(new JLabel(String.format("₱%,.2f", b.getDiscount())));
+
+        mainPanel.add(new JLabel("Tax:"));
+        mainPanel.add(new JLabel(String.format("₱%,.2f", b.getTax())));
+
+        JLabel totalLbl = new JLabel("Total Amount:");
+        totalLbl.setFont(UIUtils.FONT_BOLD);
+        mainPanel.add(totalLbl);
+
+        JLabel totalVal = new JLabel(String.format("₱%,.2f", b.getTotalAmount()));
+        totalVal.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        totalVal.setForeground(UIUtils.ACCENT_COLOR);
+        mainPanel.add(totalVal);
+
+        mainPanel.add(new JLabel("Bill Status:"));
+        mainPanel.add(new JLabel(b.getBillStatus().getDisplayName()));
+
+        mainPanel.add(new JLabel("Billing Date:"));
+        mainPanel.add(new JLabel(b.getBillingDate() != null ? b.getBillingDate().toString() : "N/A"));
+
+        dialog.add(mainPanel, BorderLayout.CENTER);
+
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        btnPanel.setBackground(Color.WHITE);
+        JButton close = UIUtils.createStyledButton("Close", UIUtils.PRIMARY_COLOR);
+        close.addActionListener(e -> dialog.dispose());
+        btnPanel.add(close);
+        dialog.add(btnPanel, BorderLayout.SOUTH);
+
+        dialog.setVisible(true);
     }
 
     private void handleEdit() {
@@ -244,10 +328,88 @@ public class BillingManagementPanel extends JPanel {
         });
     }
 
+    private void handlePrintInvoice() {
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            UIUtils.showInfo(this, "Please select a bill to print.");
+            return;
+        }
+        int billId = (int) tableModel.getValueAt(row, 0);
+        UIUtils.runSafely(this, () -> {
+            Billing b = billingService.getBillingOrThrow(billId);
+            showPrintDialog(b);
+        });
+    }
+
+    private void showPrintDialog(Billing b) {
+        JDialog dialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Invoice - Bill #" + b.getBillId(), true);
+        dialog.setSize(520, 640);
+        dialog.setLocationRelativeTo(this);
+        dialog.setLayout(new BorderLayout());
+
+        JTextArea printArea = new JTextArea();
+        printArea.setEditable(false);
+        printArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        printArea.setMargin(new Insets(16, 20, 16, 20));
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("==================================================\n");
+        sb.append("               GITAWAY HOTEL INVOICE              \n");
+        sb.append("==================================================\n");
+        sb.append(String.format("Invoice No   : %-20s\n", "INV-" + b.getBillId()));
+        sb.append(String.format("Billing Date : %-20s\n", b.getBillingDate()));
+        sb.append(String.format("Guest Name   : %-20s\n", b.getGuestName()));
+        sb.append(String.format("Res ID       : %-20s\n", b.getReservationId()));
+        sb.append("--------------------------------------------------\n");
+        sb.append(String.format("Room Number  : %-20s\n", b.getRoomNumber()));
+        sb.append(String.format("Room Type    : %-20s\n", b.getRoomType()));
+        sb.append(String.format("Check-in     : %-20s\n", b.getCheckInDate()));
+        sb.append(String.format("Check-out    : %-20s\n", b.getCheckOutDate()));
+        sb.append(String.format("Nights       : %-20d\n", b.getNumberOfNights()));
+        sb.append("--------------------------------------------------\n");
+        sb.append(String.format("Room Charges        : %18s\n", String.format("₱%,.2f", b.getRoomCharges())));
+        sb.append(String.format("Additional Charges  : %18s\n", String.format("₱%,.2f", b.getAdditionalCharges())));
+        sb.append(String.format("Tax                 : %18s\n", String.format("₱%,.2f", b.getTax())));
+        sb.append(String.format("Discount            : %18s\n", String.format("-₱%,.2f", b.getDiscount())));
+        sb.append("==================================================\n");
+        sb.append(String.format("TOTAL AMOUNT DUE    : %18s\n", String.format("₱%,.2f", b.getTotalAmount())));
+        sb.append("==================================================\n");
+        sb.append(String.format("Bill Status         : %-20s\n", b.getBillStatus().getDisplayName()));
+        sb.append("--------------------------------------------------\n");
+        sb.append("            Thank you for staying with us!        \n");
+        sb.append("==================================================\n");
+
+        printArea.setText(sb.toString());
+
+        JScrollPane scroll = new JScrollPane(printArea);
+        scroll.setBorder(null);
+        dialog.add(scroll, BorderLayout.CENTER);
+
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        panel.setBackground(Color.WHITE);
+        JButton close = UIUtils.createStyledButton("Close", UIUtils.PRIMARY_COLOR);
+        close.addActionListener(e -> dialog.dispose());
+        
+        JButton printBtn = UIUtils.createStyledButton("Print Statement", UIUtils.SUCCESS_COLOR);
+        printBtn.addActionListener(e -> {
+            try {
+                printArea.print();
+            } catch (Exception ex) {
+                UIUtils.showError(dialog, "Printing failed: " + ex.getMessage());
+            }
+        });
+
+        panel.add(printBtn);
+        panel.add(close);
+        dialog.add(panel, BorderLayout.SOUTH);
+
+        dialog.setVisible(true);
+    }
+
     private void handleDelete() {
         int row = table.getSelectedRow();
         if (row < 0) {
-            UIUtils.showInfo(this, "Please select a bill to delete.");
+            UIUtils.showInfo(this, "Please select a bill to archive/restore.");
             return;
         }
         int billId = (int) tableModel.getValueAt(row, 0);
@@ -265,7 +427,7 @@ public class BillingManagementPanel extends JPanel {
         } else {
             boolean confirmed = UIUtils.confirm(this,
                     "Move bill #" + billId + " to archive? This is a soft delete; the record is not permanently lost.",
-                    "Confirm Delete");
+                    "Confirm Archive");
             if (confirmed) {
                 UIUtils.runSafely(this, () -> {
                     billingService.softDeleteBilling(billId);
@@ -291,26 +453,7 @@ public class BillingManagementPanel extends JPanel {
         }
 
         if (!found) {
-            int choice = JOptionPane.showConfirmDialog(this,
-                    "No billing record found for Reservation #" + reservationId + ".\nWould you like to create a new bill now?",
-                    "Create Bill", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-            if (choice == JOptionPane.YES_OPTION) {
-                Billing temp = new Billing();
-                temp.setReservationId(reservationId);
-                BillingFormDialog dialog = new BillingFormDialog(SwingUtilities.getWindowAncestor(this), temp);
-                dialog.setVisible(true);
-                if (dialog.isSaved()) {
-                    loadActiveBillings();
-                    for (int i = 0; i < table.getRowCount(); i++) {
-                        Object val = tableModel.getValueAt(i, 1);
-                        if (val instanceof Integer && (Integer) val == reservationId) {
-                            table.setRowSelectionInterval(i, i);
-                            table.scrollRectToVisible(table.getCellRect(i, 0, true));
-                            break;
-                        }
-                    }
-                }
-            }
+            UIUtils.showInfo(this, "No billing record found for Reservation #" + reservationId + ".\nBilling records are generated automatically on CHECKED_OUT.");
         }
     }
 }

@@ -129,14 +129,23 @@ public class TestSystemEnhancements {
         LocalDate end = LocalDate.now().plusDays(32); // 2 nights x 1500 = 3000
 
         Reservation res = reservationService.addReservation(guestId, roomId, start, end, 1, ReservationStatus.PENDING, "Valid");
+        // To generate a bill, the reservation status must be CHECKED_OUT. Let's transition it first.
+        reservationService.updateReservation(res.getReservationId(), roomId, start, end, 1, ReservationStatus.CONFIRMED, "Confirmed");
+        reservationService.updateReservation(res.getReservationId(), roomId, start, end, 1, ReservationStatus.CHECKED_IN, "Checked In");
+        reservationService.updateReservation(res.getReservationId(), roomId, start, end, 1, ReservationStatus.CHECKED_OUT, "Checked Out");
+
+        Billing billing = billingService.findByReservationId(res.getReservationId())
+                .orElseThrow(() -> new RuntimeException("FAIL: Bill was not automatically generated upon checkout."));
+
         try {
             // Room charge = 3000, Tax = 0, Add Charges = 200, Subtotal = 3200. Discount = 3500 (too high)
-            billingService.addBilling(res.getReservationId(), new BigDecimal("200.00"), new BigDecimal("3500.00"),
-                    BigDecimal.ZERO, PaymentStatus.UNPAID, PaymentMethod.NONE);
+            billingService.updateBilling(billing.getBillId(), new BigDecimal("200.00"), new BigDecimal("3500.00"),
+                    BigDecimal.ZERO, BillStatus.GENERATED);
             throw new RuntimeException("FAIL: Allowed discount to exceed subtotal charges");
         } catch (ValidationException e) {
             System.out.println("    PASS: Blocked excessive discount. Message: " + e.getMessage());
         } finally {
+            billingService.softDeleteBilling(billing.getBillId());
             reservationService.softDeleteReservation(res.getReservationId());
         }
     }

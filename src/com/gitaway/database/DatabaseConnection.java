@@ -70,6 +70,25 @@ public class DatabaseConnection {
                 } else {
                     // Run migrations
                     try {
+                        boolean needsBillingRecreate = false;
+                        try (ResultSet rs = stmt.executeQuery("SHOW COLUMNS FROM billing LIKE 'payment_status'")) {
+                            if (rs.next()) {
+                                needsBillingRecreate = true;
+                            }
+                        }
+                        if (needsBillingRecreate) {
+                            System.out.println("Outdated billing table schema detected. Dropping old billing table...");
+                            stmt.executeUpdate("SET FOREIGN_KEY_CHECKS = 0");
+                            stmt.executeUpdate("DROP TABLE IF EXISTS billing");
+                            stmt.executeUpdate("SET FOREIGN_KEY_CHECKS = 1");
+                            System.out.println("Re-initializing schema to create correct billing table...");
+                            executeSqlScript(stmt, "schema.sql");
+                        }
+                    } catch (Exception ex) {
+                        System.out.println("Migration warning (billing table update check): " + ex.getMessage());
+                    }
+
+                    try {
                         stmt.executeUpdate("ALTER TABLE reservations MODIFY COLUMN room_id INT NULL");
                     } catch (Exception ex) {
                         System.out.println("Migration warning (modify room_id): " + ex.getMessage());
@@ -79,6 +98,13 @@ public class DatabaseConnection {
                         stmt.executeUpdate("ALTER TABLE rooms MODIFY COLUMN status ENUM('AVAILABLE', 'RESERVED', 'OCCUPIED', 'MAINTENANCE') NOT NULL DEFAULT 'AVAILABLE'");
                     } catch (Exception ex) {
                         System.out.println("Migration warning (modify rooms status enum): " + ex.getMessage());
+                    }
+
+                    try {
+                        // Fix the query to avoid using non-existent column 'full_name' in guests table
+                        stmt.executeUpdate("UPDATE guests SET phone = '09175557456' WHERE CONCAT(first_name, ' ', last_name) = 'Juan Dela Cruz'");
+                    } catch (Exception ex) {
+                        System.out.println("Migration warning (update Juan Dela Cruz phone): " + ex.getMessage());
                     }
 
                     try {
@@ -223,6 +249,27 @@ public class DatabaseConnection {
                             stmt.executeUpdate("UPDATE rooms SET status = 'RESERVED' WHERE room_id IN (SELECT room_id FROM reservations WHERE status = 'CONFIRMED' AND room_id IS NOT NULL)");
                             
                             System.out.println("Sample reservation data seeded successfully.");
+                            
+                            // Automatically seed billing records for CHECKED_OUT reservations
+                            try {
+                                try (ResultSet rs = stmt.executeQuery("SELECT reservation_id, total_amount FROM reservations WHERE status = 'CHECKED_OUT'")) {
+                                    java.util.List<Integer> resIds = new java.util.ArrayList<>();
+                                    java.util.List<java.math.BigDecimal> amounts = new java.util.ArrayList<>();
+                                    while (rs.next()) {
+                                        resIds.add(rs.getInt("reservation_id"));
+                                        amounts.add(rs.getBigDecimal("total_amount"));
+                                    }
+                                    for (int j = 0; j < resIds.size(); j++) {
+                                        int rId = resIds.get(j);
+                                        java.math.BigDecimal amt = amounts.get(j);
+                                        stmt.executeUpdate("INSERT IGNORE INTO billing (reservation_id, billing_date, room_charges, additional_charges, discount, tax, total_amount, bill_status) " +
+                                                "VALUES (" + rId + ", CURRENT_DATE, " + amt + ", 0.00, 0.00, 0.00, " + amt + ", 'GENERATED')");
+                                    }
+                                }
+                                System.out.println("Seeded billing records for CHECKED_OUT reservations successfully.");
+                            } catch (Exception ex) {
+                                System.out.println("Migration warning (seed billing from reservations): " + ex.getMessage());
+                            }
                         }
                     } catch (Exception ex) {
                         System.out.println("Migration warning (seed reservations/guests): " + ex.getMessage());
@@ -242,12 +289,7 @@ public class DatabaseConnection {
                             System.out.println("Migration error (add room_type): " + ex.getMessage());
                         }
                     }
-                    
-                    try {
-                        stmt.executeUpdate("UPDATE guests SET phone = '09175557456' WHERE CONCAT(first_name, ' ', last_name) = 'Juan Dela Cruz' OR full_name = 'Juan Dela Cruz'");
-                    } catch (Exception ex) {
-                        System.out.println("Migration warning (update Juan Dela Cruz phone): " + ex.getMessage());
-                    }
+                    // Handled above.
                 }
             }
         } catch (Exception e) {

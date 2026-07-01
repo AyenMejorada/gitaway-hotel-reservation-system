@@ -322,7 +322,7 @@ public class DashboardPanel extends JPanel {
                 .count();
         long maintenanceRooms = roomService.countByStatus(RoomStatus.MAINTENANCE);
 
-        BigDecimal totalRevenue = reservationService.getTotalRevenue();
+        BigDecimal totalRevenue = dashboardService.getStats().getTotalRevenue();
         java.text.NumberFormat formatter = java.text.NumberFormat.getCurrencyInstance(new java.util.Locale("en", "PH"));
         String revenueStr = formatter.format(totalRevenue == null ? BigDecimal.ZERO : totalRevenue);
 

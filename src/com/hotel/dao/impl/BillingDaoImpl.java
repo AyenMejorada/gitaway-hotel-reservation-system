@@ -4,10 +4,11 @@ import com.hotel.dao.BillingDao;
 import com.hotel.db.ConnectionFactory;
 import com.hotel.exception.DatabaseException;
 import com.hotel.model.Billing;
-import com.hotel.model.PaymentMethod;
-import com.hotel.model.PaymentStatus;
+import com.hotel.model.BillStatus;
+import com.hotel.model.RoomType;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -20,26 +21,27 @@ import java.util.Optional;
 public class BillingDaoImpl implements BillingDao {
 
     private static final String BASE_SELECT =
-            "SELECT b.*, g.first_name, g.last_name, rm.room_number " +
+            "SELECT b.*, g.first_name, g.last_name, rm.room_number, r.room_type, r.check_in_date, r.check_out_date, " +
+            "DATEDIFF(r.check_out_date, r.check_in_date) AS number_of_nights " +
             "FROM billing b " +
             "JOIN reservations r ON b.reservation_id = r.reservation_id " +
             "JOIN guests g ON r.guest_id = g.guest_id " +
-            "JOIN rooms rm ON r.room_id = rm.room_id ";
+            "LEFT JOIN rooms rm ON r.room_id = rm.room_id ";
 
     @Override
     public Billing create(Billing billing) {
-        String sql = "INSERT INTO billing (reservation_id, room_charges, additional_charges, discount, "
-                + "tax, total_amount, payment_status, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO billing (reservation_id, billing_date, room_charges, additional_charges, discount, "
+                + "tax, total_amount, bill_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, billing.getReservationId());
-            ps.setBigDecimal(2, billing.getRoomCharges());
-            ps.setBigDecimal(3, billing.getAdditionalCharges());
-            ps.setBigDecimal(4, billing.getDiscount());
-            ps.setBigDecimal(5, billing.getTax());
-            ps.setBigDecimal(6, billing.getTotalAmount());
-            ps.setString(7, billing.getPaymentStatus().name());
-            ps.setString(8, billing.getPaymentMethod().name());
+            ps.setDate(2, Date.valueOf(billing.getBillingDate()));
+            ps.setBigDecimal(3, billing.getRoomCharges());
+            ps.setBigDecimal(4, billing.getAdditionalCharges());
+            ps.setBigDecimal(5, billing.getDiscount());
+            ps.setBigDecimal(6, billing.getTax());
+            ps.setBigDecimal(7, billing.getTotalAmount());
+            ps.setString(8, billing.getBillStatus().name());
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 if (keys.next()) {
@@ -55,7 +57,7 @@ public class BillingDaoImpl implements BillingDao {
     @Override
     public void update(Billing billing) {
         String sql = "UPDATE billing SET room_charges = ?, additional_charges = ?, discount = ?, "
-                + "tax = ?, total_amount = ?, payment_status = ?, payment_method = ? WHERE bill_id = ?";
+                + "tax = ?, total_amount = ?, bill_status = ?, billing_date = ? WHERE bill_id = ?";
         try (Connection conn = ConnectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setBigDecimal(1, billing.getRoomCharges());
@@ -63,8 +65,8 @@ public class BillingDaoImpl implements BillingDao {
             ps.setBigDecimal(3, billing.getDiscount());
             ps.setBigDecimal(4, billing.getTax());
             ps.setBigDecimal(5, billing.getTotalAmount());
-            ps.setString(6, billing.getPaymentStatus().name());
-            ps.setString(7, billing.getPaymentMethod().name());
+            ps.setString(6, billing.getBillStatus().name());
+            ps.setDate(7, Date.valueOf(billing.getBillingDate()));
             ps.setInt(8, billing.getBillId());
             int rows = ps.executeUpdate();
             if (rows == 0) {
@@ -165,13 +167,14 @@ public class BillingDaoImpl implements BillingDao {
         Billing b = new Billing();
         b.setBillId(rs.getInt("bill_id"));
         b.setReservationId(rs.getInt("reservation_id"));
+        Date bDate = rs.getDate("billing_date");
+        if (bDate != null) b.setBillingDate(bDate.toLocalDate());
         b.setRoomCharges(rs.getBigDecimal("room_charges"));
         b.setAdditionalCharges(rs.getBigDecimal("additional_charges"));
         b.setDiscount(rs.getBigDecimal("discount"));
         b.setTax(rs.getBigDecimal("tax"));
         b.setTotalAmount(rs.getBigDecimal("total_amount"));
-        b.setPaymentStatus(PaymentStatus.valueOf(rs.getString("payment_status")));
-        b.setPaymentMethod(PaymentMethod.valueOf(rs.getString("payment_method")));
+        b.setBillStatus(BillStatus.valueOf(rs.getString("bill_status").toUpperCase().replace(" ", "_")));
         b.setDeleted(rs.getBoolean("is_deleted"));
         Timestamp createdAt = rs.getTimestamp("created_at");
         if (createdAt != null) b.setCreatedAt(createdAt.toLocalDateTime());
@@ -179,7 +182,13 @@ public class BillingDaoImpl implements BillingDao {
         if (updatedAt != null) b.setUpdatedAt(updatedAt.toLocalDateTime());
 
         b.setGuestName(rs.getString("first_name") + " " + rs.getString("last_name"));
-        b.setRoomNumber(rs.getString("room_number"));
+        b.setRoomNumber(rs.getString("room_number") == null ? "N/A" : rs.getString("room_number"));
+        b.setRoomType(RoomType.valueOf(rs.getString("room_type")));
+        Date checkIn = rs.getDate("check_in_date");
+        if (checkIn != null) b.setCheckInDate(checkIn.toLocalDate());
+        Date checkOut = rs.getDate("check_out_date");
+        if (checkOut != null) b.setCheckOutDate(checkOut.toLocalDate());
+        b.setNumberOfNights(rs.getInt("number_of_nights"));
         return b;
     }
 }

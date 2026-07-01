@@ -3,6 +3,7 @@ package com.hotel.service;
 import com.hotel.model.RoomStatus;
 import com.hotel.model.Reservation;
 import com.hotel.model.ReservationStatus;
+import com.hotel.model.Billing;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -20,25 +21,34 @@ public class DashboardService {
     private final RoomService roomService;
     private final GuestService guestService;
     private final ReservationService reservationService;
+    private final BillingService billingService;
 
     public DashboardService() {
         this.roomService = new RoomService();
         this.guestService = new GuestService();
         this.reservationService = new ReservationService();
+        this.billingService = new BillingService();
     }
 
     public DashboardService(RoomService roomService, GuestService guestService,
-            ReservationService reservationService) {
+            ReservationService reservationService, BillingService billingService) {
         this.roomService = roomService;
         this.guestService = guestService;
         this.reservationService = reservationService;
+        this.billingService = billingService;
+    }
+
+    private BigDecimal getCalculatedRevenue() {
+        return billingService.getAllActiveBillings().stream()
+                .map(Billing::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     public DashboardStats getStats() {
         long rooms = roomService.countActiveRooms();
         long guests = guestService.countActiveGuests();
         long reservations = reservationService.countActiveReservations();
-        BigDecimal revenue = reservationService.getTotalRevenue();
+        BigDecimal revenue = getCalculatedRevenue();
         long occupied = roomService.countByStatus(RoomStatus.OCCUPIED);
         long available = roomService.countByStatus(RoomStatus.AVAILABLE);
         return new DashboardStats(rooms, guests, reservations, revenue, occupied, available);
@@ -51,7 +61,7 @@ public class DashboardService {
         long reservedRooms = roomService.countByStatus(RoomStatus.RESERVED);
         long maintenanceRooms = roomService.countByStatus(RoomStatus.MAINTENANCE);
         long totalGuests = guestService.countActiveGuests();
-        BigDecimal totalRevenue = reservationService.getTotalRevenue();
+        BigDecimal totalRevenue = getCalculatedRevenue();
         if (totalRevenue == null) {
             totalRevenue = BigDecimal.ZERO;
         }
