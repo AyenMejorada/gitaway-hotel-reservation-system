@@ -41,9 +41,9 @@ public class GuestManagementPanel extends JPanel {
     }
 
     private void initComponents() {
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(16, 16));
         setBackground(UIUtils.BACKGROUND_COLOR);
-        setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+        setBorder(BorderFactory.createEmptyBorder(24, 24, 24, 24));
 
         JPanel headerRow = new JPanel(new BorderLayout());
         headerRow.setOpaque(false);

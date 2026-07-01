@@ -74,8 +74,8 @@ public class AdminMainFrame extends JFrame {
         sidebar.add(welcome);
 
         sidebar.add(createNavButton("Dashboard", CARD_DASHBOARD, true));
-        sidebar.add(createNavButton("Room Management", CARD_ROOMS, false));
         sidebar.add(createNavButton("Reservation Management", CARD_RESERVATIONS, false));
+        sidebar.add(createNavButton("Room Management", CARD_ROOMS, false));
         sidebar.add(createNavButton("Guest Management", CARD_GUESTS, false));
         sidebar.add(createNavButton("Billing & Payments", CARD_BILLING, false));
 

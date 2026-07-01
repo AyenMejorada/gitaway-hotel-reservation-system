@@ -55,16 +55,17 @@ public class ReservationManagementPanel extends JPanel {
     private boolean viewingArchived = false;
 
     // Sorting
-    private int currentSortColumn = 0;
+    private int currentSortColumn = -1;
     private boolean isAscending = true;
 
     // Pagination
     private int currentPage = 1;
-    private static final int PAGE_SIZE = 10;
+    private int pageSize = 10;
     private int totalPages = 1;
     private JLabel pageLabel;
     private JButton prevPageButton;
     private JButton nextPageButton;
+    private JPanel paginationPanel;
 
     // Details Panel Elements
     private CardLayout rightCardLayout;
@@ -272,7 +273,7 @@ public class ReservationManagementPanel extends JPanel {
         leftPanel.add(scrollPane, BorderLayout.CENTER);
 
         // Pagination Panel
-        JPanel paginationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
+        paginationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
         paginationPanel.setOpaque(false);
 
         prevPageButton = new JButton("◀ Prev");
@@ -305,6 +306,25 @@ public class ReservationManagementPanel extends JPanel {
 
         splitPane.setLeftComponent(leftPanel);
 
+        // Add component listener to dynamically adjust page size based on window/viewport height
+        scrollPane.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                int viewportHeight = scrollPane.getViewport().getHeight();
+                int rowHeight = table.getRowHeight();
+                if (rowHeight > 0 && viewportHeight > 0) {
+                    int computedPageSize = viewportHeight / rowHeight;
+                    if (computedPageSize < 10) {
+                        computedPageSize = 10;
+                    }
+                    if (computedPageSize != pageSize) {
+                        pageSize = computedPageSize;
+                        applyFilterAndSearch();
+                    }
+                }
+            }
+        });
+
         // Details Panel (Right)
         JPanel rightPanel = new JPanel(new BorderLayout());
         rightPanel.setOpaque(false);
@@ -320,7 +340,6 @@ public class ReservationManagementPanel extends JPanel {
                 new LineBorder(new Color(210, 220, 235), 1, true),
                 BorderFactory.createEmptyBorder(30, 24, 30, 24)
         ));
-        placeholderCard.setPreferredSize(new Dimension(300, 400));
         JLabel placeholderLabel = new JLabel("Select a reservation to view its details.");
         placeholderLabel.setFont(new Font("Segoe UI", Font.ITALIC, 14));
         placeholderLabel.setForeground(Color.GRAY);
@@ -411,9 +430,18 @@ public class ReservationManagementPanel extends JPanel {
         detailTotalVal.setForeground(UIUtils.PRIMARY_COLOR);
         detailsCard.add(detailTotalVal, dcGbc);
 
+        // Add filler space at the bottom of the details Card
+        GridBagConstraints fillerGbc = new GridBagConstraints();
+        fillerGbc.gridy = dcRow++;
+        fillerGbc.gridx = 0;
+        fillerGbc.gridwidth = 2;
+        fillerGbc.weighty = 1.0;
+        fillerGbc.fill = GridBagConstraints.VERTICAL;
+        detailsCard.add(Box.createVerticalGlue(), fillerGbc);
+
         rightCardContainer.add(placeholderCard, "PLACEHOLDER");
         rightCardContainer.add(detailsCard, "DETAILS");
-        rightPanel.add(rightCardContainer, BorderLayout.NORTH);
+        rightPanel.add(rightCardContainer, BorderLayout.CENTER);
         splitPane.setRightComponent(rightPanel);
 
         add(splitPane, BorderLayout.CENTER);
@@ -551,7 +579,7 @@ public class ReservationManagementPanel extends JPanel {
 
         this.currentFilteredList = filtered;
 
-        totalPages = (int) Math.ceil((double) currentFilteredList.size() / PAGE_SIZE);
+        totalPages = (int) Math.ceil((double) currentFilteredList.size() / pageSize);
         if (totalPages <= 0) totalPages = 1;
         if (currentPage > totalPages) currentPage = totalPages;
 
@@ -567,7 +595,18 @@ public class ReservationManagementPanel extends JPanel {
             return;
         }
 
-        if (currentSortColumn < 0) return;
+        if (currentSortColumn < 0) {
+            // Sort by Reservation status priority: Pending (0), Confirmed (1), Checked In (2), Checked Out (3), Cancelled (4)
+            // Within each status, sort by nearest Check-in Date
+            list.sort((r1, r2) -> {
+                int statusCmp = Integer.compare(r1.getStatus().ordinal(), r2.getStatus().ordinal());
+                if (statusCmp != 0) {
+                    return statusCmp;
+                }
+                return r1.getCheckInDate().compareTo(r2.getCheckInDate());
+            });
+            return;
+        }
 
         list.sort((r1, r2) -> {
             int cmp = 0;
@@ -610,8 +649,8 @@ public class ReservationManagementPanel extends JPanel {
     private void renderPage() {
         tableModel.setRowCount(0);
 
-        int startIdx = (currentPage - 1) * PAGE_SIZE;
-        int endIdx = Math.min(startIdx + PAGE_SIZE, currentFilteredList.size());
+        int startIdx = (currentPage - 1) * pageSize;
+        int endIdx = Math.min(startIdx + pageSize, currentFilteredList.size());
 
         for (int i = startIdx; i < endIdx; i++) {
             Reservation r = currentFilteredList.get(i);
@@ -632,6 +671,9 @@ public class ReservationManagementPanel extends JPanel {
         pageLabel.setText(String.format("Page %d of %d", currentPage, totalPages));
         prevPageButton.setEnabled(currentPage > 1);
         nextPageButton.setEnabled(currentPage < totalPages);
+        if (paginationPanel != null) {
+            paginationPanel.setVisible(totalPages > 1);
+        }
 
         UIUtils.formatTableColumns(table);
         updateDetailsAndButtonStates();
@@ -650,7 +692,7 @@ public class ReservationManagementPanel extends JPanel {
             return;
         }
 
-        int modelRowIndex = (currentPage - 1) * PAGE_SIZE + selectedViewRow;
+        int modelRowIndex = (currentPage - 1) * pageSize + selectedViewRow;
         if (modelRowIndex >= currentFilteredList.size()) {
             clearDetailsCard();
             if (rightCardLayout != null && rightCardContainer != null) {
@@ -774,7 +816,7 @@ public class ReservationManagementPanel extends JPanel {
             return;
         }
 
-        int modelRowIndex = (currentPage - 1) * PAGE_SIZE + selectedViewRow;
+        int modelRowIndex = (currentPage - 1) * pageSize + selectedViewRow;
         if (modelRowIndex >= currentFilteredList.size()) return;
 
         Reservation reservation = currentFilteredList.get(modelRowIndex);
@@ -882,7 +924,7 @@ public class ReservationManagementPanel extends JPanel {
             return;
         }
 
-        int modelRowIndex = (currentPage - 1) * PAGE_SIZE + selectedViewRow;
+        int modelRowIndex = (currentPage - 1) * pageSize + selectedViewRow;
         if (modelRowIndex >= currentFilteredList.size()) return;
 
         Reservation reservation = currentFilteredList.get(modelRowIndex);
@@ -915,7 +957,7 @@ public class ReservationManagementPanel extends JPanel {
             return;
         }
 
-        int modelRowIndex = (currentPage - 1) * PAGE_SIZE + selectedViewRow;
+        int modelRowIndex = (currentPage - 1) * pageSize + selectedViewRow;
         if (modelRowIndex >= currentFilteredList.size()) return;
 
         Reservation reservation = currentFilteredList.get(modelRowIndex);

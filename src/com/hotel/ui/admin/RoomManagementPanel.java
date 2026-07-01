@@ -52,9 +52,10 @@ public class RoomManagementPanel extends JPanel {
 
     // Master list of loaded rooms
     private List<Room> allRooms = new ArrayList<>();
+    private List<Room> currentFilteredRooms = new ArrayList<>();
 
     private static final String[] COLUMNS = {
-            "ID", "Room Number", "Type", "Capacity", "Price/Night", "Status", "Current Guest", "Check-in", "Check-out"
+            "Room Number", "Type", "Capacity", "Price/Night", "Status", "Current Guest", "Check-in", "Check-out"
     };
 
     public RoomManagementPanel() {
@@ -325,10 +326,11 @@ public class RoomManagementPanel extends JPanel {
             filtered.sort(Comparator.comparing(r -> r.getRoomType().name()));
         }
 
+        this.currentFilteredRooms = filtered;
+
         tableModel.setRowCount(0);
         for (Room r : filtered) {
             tableModel.addRow(new Object[]{
-                    r.getRoomId(),
                     r.getRoomNumber(),
                     r.getRoomType(),
                     r.getCapacity(),
@@ -372,7 +374,7 @@ public class RoomManagementPanel extends JPanel {
             UIUtils.showInfo(this, "Archived rooms cannot be edited. Restore the room first.");
             return;
         }
-        int roomId = (int) tableModel.getValueAt(row, 0);
+        int roomId = currentFilteredRooms.get(row).getRoomId();
         UIUtils.runSafely(this, () -> {
             Room room = roomService.getRoomOrThrow(roomId);
             RoomFormDialog dialog = new RoomFormDialog(SwingUtilities.getWindowAncestor(this), room);
@@ -389,8 +391,8 @@ public class RoomManagementPanel extends JPanel {
             UIUtils.showInfo(this, "Please select a room to delete.");
             return;
         }
-        int roomId = (int) tableModel.getValueAt(row, 0);
-        String roomNumber = String.valueOf(tableModel.getValueAt(row, 1));
+        int roomId = currentFilteredRooms.get(row).getRoomId();
+        String roomNumber = currentFilteredRooms.get(row).getRoomNumber();
 
         if (viewingArchived) {
             boolean confirmed = UIUtils.confirm(this,
