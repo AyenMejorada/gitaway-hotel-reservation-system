@@ -19,6 +19,10 @@ public interface BillingDao {
 
     void restore(int billId);
 
+    void deletePermanently(int billId);
+
+    void deleteByReservationId(int reservationId);
+
     Optional<Billing> findById(int billId);
 
     Optional<Billing> findByReservationId(int reservationId);

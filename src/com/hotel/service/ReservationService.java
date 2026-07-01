@@ -342,6 +342,19 @@ public class ReservationService {
         reservationDao.restore(reservationId);
     }
 
+    public void deleteReservationPermanently(int reservationId) {
+        getReservationOrThrow(reservationId);
+        TransactionManager.begin();
+        try {
+            billingService.deleteBillingByReservationId(reservationId);
+            reservationDao.deletePermanently(reservationId);
+            TransactionManager.commit();
+        } catch (Exception e) {
+            TransactionManager.rollback();
+            throw e;
+        }
+    }
+
     public Reservation getReservationOrThrow(int reservationId) {
         return reservationDao.findById(reservationId)
                 .orElseThrow(

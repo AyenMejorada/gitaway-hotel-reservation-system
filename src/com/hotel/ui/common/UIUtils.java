@@ -228,4 +228,19 @@ public final class UIUtils {
         container.add(label);
         return container;
     }
+
+    public static boolean confirmPermanentDelete(Component parent) {
+        Object[] options = {"Delete Permanently", "Cancel"};
+        int result = JOptionPane.showOptionDialog(
+                parent,
+                "Are you sure you want to permanently delete this record?\n\nThis action cannot be undone.",
+                "Confirm Permanent Deletion",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE,
+                null,
+                options,
+                options[1]
+        );
+        return result == JOptionPane.YES_OPTION;
+    }
 }

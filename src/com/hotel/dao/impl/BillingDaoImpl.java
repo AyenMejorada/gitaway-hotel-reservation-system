@@ -87,6 +87,30 @@ public class BillingDaoImpl implements BillingDao {
         setDeletedFlag(billId, false);
     }
 
+    @Override
+    public void deletePermanently(int billId) {
+        String sql = "DELETE FROM billing WHERE bill_id = ?";
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, billId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to permanently delete billing.", e);
+        }
+    }
+
+    @Override
+    public void deleteByReservationId(int reservationId) {
+        String sql = "DELETE FROM billing WHERE reservation_id = ?";
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, reservationId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to permanently delete billing by reservation ID.", e);
+        }
+    }
+
     private void setDeletedFlag(int billId, boolean deleted) {
         String sql = "UPDATE billing SET is_deleted = ? WHERE bill_id = ?";
         try (Connection conn = ConnectionFactory.getConnection();

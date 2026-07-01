@@ -26,6 +26,11 @@ public class BillingManagementPanel extends JPanel {
     private ReadOnlyTableModel tableModel;
     private JTable table;
     private boolean viewingArchived = false;
+    private JButton viewDetailsButton;
+    private JButton editButton;
+    private JButton printButton;
+    private JButton deleteButton;
+    private JButton deletePermanentlyButton;
     private JButton toggleArchiveButton;
     private JLabel titleLabel;
     private PlaceholderTextField searchField;
@@ -62,17 +67,21 @@ public class BillingManagementPanel extends JPanel {
         JPanel buttonsRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         buttonsRow.setOpaque(false);
 
-        JButton viewDetailsButton = UIUtils.createStyledButton("View Details", UIUtils.PRIMARY_COLOR);
+        viewDetailsButton = UIUtils.createStyledButton("View Details", UIUtils.PRIMARY_COLOR);
         viewDetailsButton.addActionListener(e -> handleViewDetails());
 
-        JButton editButton = UIUtils.createStyledButton("Edit Charges", UIUtils.ACCENT_COLOR);
+        editButton = UIUtils.createStyledButton("Edit Charges", UIUtils.ACCENT_COLOR);
         editButton.addActionListener(e -> handleEdit());
 
-        JButton printButton = UIUtils.createStyledButton("Print Invoice", new Color(41, 128, 185));
+        printButton = UIUtils.createStyledButton("Print Invoice", new Color(41, 128, 185));
         printButton.addActionListener(e -> handlePrintInvoice());
 
-        JButton deleteButton = UIUtils.createStyledButton("Archive", UIUtils.DANGER_COLOR);
+        deleteButton = UIUtils.createStyledButton("Archive", UIUtils.DANGER_COLOR);
         deleteButton.addActionListener(e -> handleDelete());
+
+        deletePermanentlyButton = UIUtils.createStyledButton("Delete Permanently", UIUtils.DANGER_COLOR);
+        deletePermanentlyButton.setVisible(false);
+        deletePermanentlyButton.addActionListener(e -> handleDeletePermanently());
 
         toggleArchiveButton = UIUtils.createStyledButton("View Archived", UIUtils.PRIMARY_COLOR);
         toggleArchiveButton.addActionListener(e -> toggleArchivedView());
@@ -81,6 +90,7 @@ public class BillingManagementPanel extends JPanel {
         buttonsRow.add(editButton);
         buttonsRow.add(printButton);
         buttonsRow.add(deleteButton);
+        buttonsRow.add(deletePermanentlyButton);
         buttonsRow.add(toggleArchiveButton);
         headerRow.add(buttonsRow, BorderLayout.EAST);
 
@@ -205,10 +215,18 @@ public class BillingManagementPanel extends JPanel {
         if (viewingArchived) {
             titleLabel.setText("Billing Management — Archived Bills");
             toggleArchiveButton.setText("View Active");
+            editButton.setVisible(false);
+            deleteButton.setText("Restore");
+            deleteButton.setBackground(UIUtils.SUCCESS_COLOR);
+            deletePermanentlyButton.setVisible(true);
             loadArchivedBillings();
         } else {
             titleLabel.setText("Billing Management");
             toggleArchiveButton.setText("View Archived");
+            editButton.setVisible(true);
+            deleteButton.setText("Archive");
+            deleteButton.setBackground(UIUtils.DANGER_COLOR);
+            deletePermanentlyButton.setVisible(false);
             loadActiveBillings();
         }
     }
@@ -436,6 +454,24 @@ public class BillingManagementPanel extends JPanel {
                     loadActiveBillings();
                 });
             }
+        }
+    }
+
+    private void handleDeletePermanently() {
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            UIUtils.showInfo(this, "Please select a bill to delete permanently.");
+            return;
+        }
+        int billId = (int) tableModel.getValueAt(row, 0);
+
+        boolean confirmed = UIUtils.confirmPermanentDelete(this);
+        if (confirmed) {
+            UIUtils.runSafely(this, () -> {
+                billingService.deleteBillingPermanently(billId);
+                UIUtils.showSuccess(this, "Bill permanently deleted successfully.");
+                loadArchivedBillings();
+            });
         }
     }
 

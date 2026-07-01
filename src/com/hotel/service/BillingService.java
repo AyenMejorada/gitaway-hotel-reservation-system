@@ -107,6 +107,15 @@ public class BillingService {
         billingDao.restore(billId);
     }
 
+    public void deleteBillingPermanently(int billId) {
+        getBillingOrThrow(billId);
+        billingDao.deletePermanently(billId);
+    }
+
+    public void deleteBillingByReservationId(int reservationId) {
+        billingDao.deleteByReservationId(reservationId);
+    }
+
     public Billing getBillingOrThrow(int billId) {
         return billingDao.findById(billId)
                 .orElseThrow(() -> new RecordNotFoundException("Bill with id " + billId + " was not found."));

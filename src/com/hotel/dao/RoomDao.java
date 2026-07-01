@@ -25,6 +25,9 @@ public interface RoomDao {
     /** Restores a previously soft-deleted room. */
     void restore(int roomId);
 
+    /** Permanently deletes a room record from the database. */
+    void deletePermanently(int roomId);
+
     Optional<Room> findById(int roomId);
 
     List<Room> findAllActive();

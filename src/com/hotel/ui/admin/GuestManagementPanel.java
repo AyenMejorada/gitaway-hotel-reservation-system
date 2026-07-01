@@ -25,6 +25,10 @@ public class GuestManagementPanel extends JPanel {
     private ReadOnlyTableModel tableModel;
     private JTable table;
     private boolean viewingArchived = false;
+    private JButton addButton;
+    private JButton editButton;
+    private JButton deleteButton;
+    private JButton deletePermanentlyButton;
     private JButton toggleArchiveButton;
     private JLabel titleLabel;
     private PlaceholderTextField searchField;
@@ -53,14 +57,18 @@ public class GuestManagementPanel extends JPanel {
         JPanel buttonsRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         buttonsRow.setOpaque(false);
 
-        JButton addButton = UIUtils.createStyledButton("Add Guest", UIUtils.SUCCESS_COLOR);
+        addButton = UIUtils.createStyledButton("Add Guest", UIUtils.SUCCESS_COLOR);
         addButton.addActionListener(e -> handleAdd());
 
-        JButton editButton = UIUtils.createStyledButton("Edit", UIUtils.ACCENT_COLOR);
+        editButton = UIUtils.createStyledButton("Edit", UIUtils.ACCENT_COLOR);
         editButton.addActionListener(e -> handleEdit());
 
-        JButton deleteButton = UIUtils.createStyledButton("Delete", UIUtils.DANGER_COLOR);
+        deleteButton = UIUtils.createStyledButton("Delete", UIUtils.DANGER_COLOR);
         deleteButton.addActionListener(e -> handleDelete());
+
+        deletePermanentlyButton = UIUtils.createStyledButton("Delete Permanently", UIUtils.DANGER_COLOR);
+        deletePermanentlyButton.setVisible(false);
+        deletePermanentlyButton.addActionListener(e -> handleDeletePermanently());
 
         toggleArchiveButton = UIUtils.createStyledButton("View Archived", UIUtils.PRIMARY_COLOR);
         toggleArchiveButton.addActionListener(e -> toggleArchivedView());
@@ -68,6 +76,7 @@ public class GuestManagementPanel extends JPanel {
         buttonsRow.add(addButton);
         buttonsRow.add(editButton);
         buttonsRow.add(deleteButton);
+        buttonsRow.add(deletePermanentlyButton);
         buttonsRow.add(toggleArchiveButton);
         headerRow.add(buttonsRow, BorderLayout.EAST);
 
@@ -207,10 +216,20 @@ public class GuestManagementPanel extends JPanel {
         if (viewingArchived) {
             titleLabel.setText("Guest Management — Archived Guests");
             toggleArchiveButton.setText("View Active");
+            addButton.setVisible(false);
+            editButton.setVisible(false);
+            deleteButton.setText("Restore");
+            deleteButton.setBackground(UIUtils.SUCCESS_COLOR);
+            deletePermanentlyButton.setVisible(true);
             loadArchivedGuests();
         } else {
             titleLabel.setText("Guest Management");
             toggleArchiveButton.setText("View Archived");
+            addButton.setVisible(true);
+            editButton.setVisible(true);
+            deleteButton.setText("Delete");
+            deleteButton.setBackground(UIUtils.DANGER_COLOR);
+            deletePermanentlyButton.setVisible(false);
             loadActiveGuests();
         }
     }
@@ -282,6 +301,24 @@ public class GuestManagementPanel extends JPanel {
                     loadActiveGuests();
                 });
             }
+        }
+    }
+
+    private void handleDeletePermanently() {
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            UIUtils.showInfo(this, "Please select a guest to delete permanently.");
+            return;
+        }
+        int guestId = (int) tableModel.getValueAt(row, 0);
+
+        boolean confirmed = UIUtils.confirmPermanentDelete(this);
+        if (confirmed) {
+            UIUtils.runSafely(this, () -> {
+                guestService.deleteGuestPermanently(guestId);
+                UIUtils.showSuccess(this, "Guest permanently deleted successfully.");
+                loadArchivedGuests();
+            });
         }
     }
 }

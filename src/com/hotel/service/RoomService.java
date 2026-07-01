@@ -64,6 +64,22 @@ public class RoomService {
         roomDao.restore(roomId);
     }
 
+    public void deleteRoomPermanently(int roomId) {
+        getRoomOrThrow(roomId);
+        try {
+            roomDao.deletePermanently(roomId);
+        } catch (com.hotel.exception.DatabaseException e) {
+            if (e.getCause() instanceof java.sql.SQLException) {
+                java.sql.SQLException se = (java.sql.SQLException) e.getCause();
+                if (se.getSQLState() != null && se.getSQLState().startsWith("23")) {
+                    throw new com.hotel.exception.ValidationException(
+                            "Cannot permanently delete this room because it is associated with existing reservations.");
+                }
+            }
+            throw e;
+        }
+    }
+
     public Room getRoomOrThrow(int roomId) {
         return roomDao.findById(roomId)
                 .orElseThrow(() -> new RecordNotFoundException("Room with id " + roomId + " was not found."));

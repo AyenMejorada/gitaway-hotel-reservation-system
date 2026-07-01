@@ -75,6 +75,21 @@ public class RoomDaoImpl implements RoomDao {
         setDeletedFlag(roomId, false);
     }
 
+    @Override
+    public void deletePermanently(int roomId) {
+        String sql = "DELETE FROM rooms WHERE room_id = ?";
+        try (Connection conn = ConnectionFactory.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, roomId);
+            int rows = ps.executeUpdate();
+            if (rows == 0) {
+                throw new DatabaseException("Room not found (id=" + roomId + ").");
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to permanently delete room.", e);
+        }
+    }
+
     private void setDeletedFlag(int roomId, boolean deleted) {
         String sql = "UPDATE rooms SET is_deleted = ? WHERE room_id = ?";
         try (Connection conn = ConnectionFactory.getConnection();

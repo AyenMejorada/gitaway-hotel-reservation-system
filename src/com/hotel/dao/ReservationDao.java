@@ -21,6 +21,8 @@ public interface ReservationDao {
 
     void restore(int reservationId);
 
+    void deletePermanently(int reservationId);
+
     Optional<Reservation> findById(int reservationId);
 
     /** Returns active (non-deleted) reservations joined with guest/room display info. */

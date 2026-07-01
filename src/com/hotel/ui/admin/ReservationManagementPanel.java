@@ -45,6 +45,7 @@ public class ReservationManagementPanel extends JPanel {
     private JButton assignRoomButton;
     private JButton editButton;
     private JButton deleteButton; // Label changes to "Restore" dynamically when viewing archived
+    private JButton deletePermanentlyButton;
     private JButton toggleArchiveButton;
     private JLabel titleLabel;
 
@@ -147,6 +148,11 @@ public class ReservationManagementPanel extends JPanel {
         deleteButton.setEnabled(false);
         deleteButton.addActionListener(e -> handleDelete());
 
+        deletePermanentlyButton = UIUtils.createStyledButton("Delete Permanently", UIUtils.DANGER_COLOR);
+        deletePermanentlyButton.setEnabled(false);
+        deletePermanentlyButton.setVisible(false);
+        deletePermanentlyButton.addActionListener(e -> handleDeletePermanently());
+
         toggleArchiveButton = UIUtils.createStyledButton("View Archived", UIUtils.PRIMARY_COLOR);
         toggleArchiveButton.addActionListener(e -> toggleArchivedView());
 
@@ -154,6 +160,7 @@ public class ReservationManagementPanel extends JPanel {
         buttonsRow.add(assignRoomButton);
         buttonsRow.add(editButton);
         buttonsRow.add(deleteButton);
+        buttonsRow.add(deletePermanentlyButton);
         buttonsRow.add(toggleArchiveButton);
         headerRow.add(buttonsRow, BorderLayout.EAST);
 
@@ -688,6 +695,7 @@ public class ReservationManagementPanel extends JPanel {
             }
             editButton.setEnabled(false);
             deleteButton.setEnabled(false);
+            deletePermanentlyButton.setEnabled(false);
             assignRoomButton.setEnabled(false);
             return;
         }
@@ -700,6 +708,7 @@ public class ReservationManagementPanel extends JPanel {
             }
             editButton.setEnabled(false);
             deleteButton.setEnabled(false);
+            deletePermanentlyButton.setEnabled(false);
             assignRoomButton.setEnabled(false);
             return;
         }
@@ -713,11 +722,13 @@ public class ReservationManagementPanel extends JPanel {
         if (viewingArchived) {
             editButton.setEnabled(false); // Archived cannot be edited
             deleteButton.setEnabled(true); // Can always restore
+            deletePermanentlyButton.setEnabled(true);
             assignRoomButton.setEnabled(false);
         } else {
             // Active reservation view rules
             ReservationStatus status = reservation.getStatus();
             deleteButton.setEnabled(true); // Admin can archive active bookings
+            deletePermanentlyButton.setEnabled(false);
 
             if (status == ReservationStatus.CANCELLED || status == ReservationStatus.CHECKED_OUT) {
                 editButton.setEnabled(false);
@@ -795,11 +806,19 @@ public class ReservationManagementPanel extends JPanel {
             toggleArchiveButton.setText("View Active");
             deleteButton.setText("Restore");
             deleteButton.setBackground(UIUtils.SUCCESS_COLOR);
+            addButton.setVisible(false);
+            assignRoomButton.setVisible(false);
+            editButton.setVisible(false);
+            deletePermanentlyButton.setVisible(true);
         } else {
             titleLabel.setText("Reservation Management");
             toggleArchiveButton.setText("View Archived");
             deleteButton.setText("Delete");
             deleteButton.setBackground(UIUtils.DANGER_COLOR);
+            addButton.setVisible(true);
+            assignRoomButton.setVisible(true);
+            editButton.setVisible(true);
+            deletePermanentlyButton.setVisible(false);
         }
         
         loadReservations();
@@ -984,6 +1003,29 @@ public class ReservationManagementPanel extends JPanel {
                     loadReservations();
                 });
             }
+        }
+    }
+
+    private void handleDeletePermanently() {
+        int selectedViewRow = table.getSelectedRow();
+        if (selectedViewRow < 0) {
+            UIUtils.showInfo(this, "Please select a reservation to delete permanently.");
+            return;
+        }
+
+        int modelRowIndex = (currentPage - 1) * pageSize + selectedViewRow;
+        if (modelRowIndex >= currentFilteredList.size()) return;
+
+        Reservation reservation = currentFilteredList.get(modelRowIndex);
+        int reservationId = reservation.getReservationId();
+
+        boolean confirmed = UIUtils.confirmPermanentDelete(this);
+        if (confirmed) {
+            UIUtils.runSafely(this, () -> {
+                reservationService.deleteReservationPermanently(reservationId);
+                UIUtils.showSuccess(this, "Reservation permanently deleted successfully.");
+                loadReservations();
+            });
         }
     }
 

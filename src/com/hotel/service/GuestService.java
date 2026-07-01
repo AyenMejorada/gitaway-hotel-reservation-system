@@ -52,6 +52,22 @@ public class GuestService {
         guestDao.restore(guestId);
     }
 
+    public void deleteGuestPermanently(int guestId) {
+        getGuestOrThrow(guestId);
+        try {
+            guestDao.deletePermanently(guestId);
+        } catch (com.hotel.exception.DatabaseException e) {
+            if (e.getCause() instanceof java.sql.SQLException) {
+                java.sql.SQLException se = (java.sql.SQLException) e.getCause();
+                if (se.getSQLState() != null && se.getSQLState().startsWith("23")) {
+                    throw new com.hotel.exception.ValidationException(
+                            "Cannot permanently delete this guest because they have associated reservations.");
+                }
+            }
+            throw e;
+        }
+    }
+
     public Guest getGuestOrThrow(int guestId) {
         return guestDao.findById(guestId)
                 .orElseThrow(() -> new RecordNotFoundException("Guest with id " + guestId + " was not found."));

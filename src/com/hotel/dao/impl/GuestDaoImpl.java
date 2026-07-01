@@ -78,6 +78,21 @@ public class GuestDaoImpl implements GuestDao {
         setDeletedFlag(guestId, false);
     }
 
+    @Override
+    public void deletePermanently(int guestId) {
+        String sql = "DELETE FROM guests WHERE guest_id = ?";
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, guestId);
+            int rows = ps.executeUpdate();
+            if (rows == 0) {
+                throw new DatabaseException("Guest not found (id=" + guestId + ").");
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to permanently delete guest.", e);
+        }
+    }
+
     private void setDeletedFlag(int guestId, boolean deleted) {
         String sql = "UPDATE guests SET is_deleted = ? WHERE guest_id = ?";
         try (Connection conn = ConnectionFactory.getConnection();

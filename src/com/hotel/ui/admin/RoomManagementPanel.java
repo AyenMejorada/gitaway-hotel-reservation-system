@@ -34,6 +34,10 @@ public class RoomManagementPanel extends JPanel {
     private boolean viewingArchived = false;
 
     // Buttons
+    private JButton addButton;
+    private JButton editButton;
+    private JButton deleteButton;
+    private JButton deletePermanentlyButton;
     private JButton toggleArchiveButton;
     private JLabel titleLabel;
 
@@ -90,14 +94,18 @@ public class RoomManagementPanel extends JPanel {
         JPanel buttonsRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         buttonsRow.setOpaque(false);
 
-        JButton addButton = UIUtils.createStyledButton("Add Room", UIUtils.SUCCESS_COLOR);
+        addButton = UIUtils.createStyledButton("Add Room", UIUtils.SUCCESS_COLOR);
         addButton.addActionListener(e -> handleAdd());
 
-        JButton editButton = UIUtils.createStyledButton("Edit Room", UIUtils.ACCENT_COLOR);
+        editButton = UIUtils.createStyledButton("Edit Room", UIUtils.ACCENT_COLOR);
         editButton.addActionListener(e -> handleEdit());
 
-        JButton deleteButton = UIUtils.createStyledButton("Delete Room", UIUtils.DANGER_COLOR);
+        deleteButton = UIUtils.createStyledButton("Delete Room", UIUtils.DANGER_COLOR);
         deleteButton.addActionListener(e -> handleDelete());
+
+        deletePermanentlyButton = UIUtils.createStyledButton("Delete Permanently", UIUtils.DANGER_COLOR);
+        deletePermanentlyButton.setVisible(false);
+        deletePermanentlyButton.addActionListener(e -> handleDeletePermanently());
 
         toggleArchiveButton = UIUtils.createStyledButton("View Archived", UIUtils.PRIMARY_COLOR);
         toggleArchiveButton.addActionListener(e -> toggleArchivedView());
@@ -105,6 +113,7 @@ public class RoomManagementPanel extends JPanel {
         buttonsRow.add(addButton);
         buttonsRow.add(editButton);
         buttonsRow.add(deleteButton);
+        buttonsRow.add(deletePermanentlyButton);
         buttonsRow.add(toggleArchiveButton);
         headerRow.add(buttonsRow, BorderLayout.EAST);
         northContainer.add(headerRow);
@@ -451,9 +460,19 @@ public class RoomManagementPanel extends JPanel {
         if (viewingArchived) {
             titleLabel.setText("Room Inventory & Management — Archived");
             toggleArchiveButton.setText("View Active");
+            addButton.setVisible(false);
+            editButton.setVisible(false);
+            deleteButton.setText("Restore");
+            deleteButton.setBackground(UIUtils.SUCCESS_COLOR);
+            deletePermanentlyButton.setVisible(true);
         } else {
             titleLabel.setText("Room Inventory & Management");
             toggleArchiveButton.setText("View Archived");
+            addButton.setVisible(true);
+            editButton.setVisible(true);
+            deleteButton.setText("Delete Room");
+            deleteButton.setBackground(UIUtils.DANGER_COLOR);
+            deletePermanentlyButton.setVisible(false);
         }
         refreshAllData();
     }
@@ -525,6 +544,28 @@ public class RoomManagementPanel extends JPanel {
                     refreshAllData();
                 });
             }
+        }
+    }
+
+    private void handleDeletePermanently() {
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            UIUtils.showInfo(this, "Please select a room to delete permanently.");
+            return;
+        }
+        int modelRowIndex = (currentPage - 1) * PAGE_SIZE + row;
+        if (modelRowIndex >= currentFilteredRooms.size()) {
+            return; // Selected a dummy row
+        }
+        int roomId = currentFilteredRooms.get(modelRowIndex).getRoomId();
+
+        boolean confirmed = UIUtils.confirmPermanentDelete(this);
+        if (confirmed) {
+            UIUtils.runSafely(this, () -> {
+                roomService.deleteRoomPermanently(roomId);
+                UIUtils.showSuccess(this, "Room permanently deleted successfully.");
+                refreshAllData();
+            });
         }
     }
 

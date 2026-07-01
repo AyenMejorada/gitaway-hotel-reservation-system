@@ -99,6 +99,21 @@ public class ReservationDaoImpl implements ReservationDao {
         setDeletedFlag(reservationId, false);
     }
 
+    @Override
+    public void deletePermanently(int reservationId) {
+        String sql = "DELETE FROM reservations WHERE reservation_id = ?";
+        try (Connection conn = ConnectionFactory.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, reservationId);
+            int rows = ps.executeUpdate();
+            if (rows == 0) {
+                throw new DatabaseException("Reservation not found (id=" + reservationId + ").");
+            }
+        } catch (SQLException e) {
+            throw new DatabaseException("Failed to permanently delete reservation.", e);
+        }
+    }
+
     private void setDeletedFlag(int reservationId, boolean deleted) {
         String sql = "UPDATE reservations SET is_deleted = ? WHERE reservation_id = ?";
         try (Connection conn = ConnectionFactory.getConnection();
