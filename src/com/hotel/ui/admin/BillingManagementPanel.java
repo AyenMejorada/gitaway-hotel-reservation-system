@@ -214,6 +214,7 @@ public class BillingManagementPanel extends JPanel {
     }
 
     public void refreshCurrentView() {
+        billingService.generateMissingBills();
         if (viewingArchived) {
             loadArchivedBillings();
         } else {

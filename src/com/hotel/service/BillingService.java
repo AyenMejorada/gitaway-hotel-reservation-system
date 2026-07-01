@@ -24,11 +24,29 @@ public class BillingService {
     public BillingService() {
         this.billingDao = new BillingDaoImpl();
         this.reservationDao = new ReservationDaoImpl();
+        generateMissingBills();
     }
 
     public BillingService(BillingDao billingDao, ReservationDao reservationDao) {
         this.billingDao = billingDao;
         this.reservationDao = reservationDao;
+        generateMissingBills();
+    }
+
+    /**
+     * Automatically scans for any active CHECKED_OUT reservations and creates missing bills.
+     */
+    public void generateMissingBills() {
+        try {
+            List<Reservation> activeReservations = reservationDao.findAllActive();
+            for (Reservation r : activeReservations) {
+                if (r.getStatus() == com.hotel.model.ReservationStatus.CHECKED_OUT) {
+                    generateBillForReservation(r.getReservationId());
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Warning: failed to automatically generate missing bills: " + e.getMessage());
+        }
     }
 
     /**
