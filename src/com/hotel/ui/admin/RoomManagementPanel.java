@@ -58,6 +58,15 @@ public class RoomManagementPanel extends JPanel {
             "Room Number", "Type", "Capacity", "Price/Night", "Status", "Current Guest", "Check-in", "Check-out"
     };
 
+    // Pagination
+    private int currentPage = 1;
+    private static final int PAGE_SIZE = 10;
+    private int totalPages = 1;
+    private JLabel pageLabel;
+    private JButton prevPageButton;
+    private JButton nextPageButton;
+    private JPanel paginationPanel;
+
     public RoomManagementPanel() {
         initComponents();
         refreshAllData();
@@ -206,7 +215,7 @@ public class RoomManagementPanel extends JPanel {
         add(northContainer, BorderLayout.NORTH);
 
         // Main Room Inventory Table
-        JPanel mainTablePanel = new JPanel(new BorderLayout());
+        JPanel mainTablePanel = new JPanel(new GridBagLayout());
         mainTablePanel.setOpaque(false);
 
         tableModel = new ReadOnlyTableModel(COLUMNS, 0);
@@ -234,7 +243,66 @@ public class RoomManagementPanel extends JPanel {
 
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(new LineBorder(new Color(230, 233, 237), 1, true));
-        mainTablePanel.add(scrollPane, BorderLayout.CENTER);
+        scrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+
+        // Calculate exact height for 10 rows plus header
+        int rowHeight = 28; // set in UIUtils.styleTable
+        int headerHeight = 32; // approximate header height
+        int totalTableHeight = headerHeight + (rowHeight * 10) + 2;
+        scrollPane.setPreferredSize(new Dimension(table.getPreferredSize().width, totalTableHeight));
+        scrollPane.setMinimumSize(new Dimension(100, totalTableHeight));
+        scrollPane.setMaximumSize(new Dimension(Integer.MAX_VALUE, totalTableHeight));
+
+        // Pagination Panel
+        paginationPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 5));
+        paginationPanel.setOpaque(false);
+
+        prevPageButton = new JButton("◀ Prev");
+        prevPageButton.setFont(UIUtils.FONT_BOLD);
+        prevPageButton.setPreferredSize(new Dimension(80, 28));
+        prevPageButton.addActionListener(e -> {
+            if (currentPage > 1) {
+                currentPage--;
+                renderPage();
+            }
+        });
+
+        pageLabel = new JLabel("Page 1 of 1");
+        pageLabel.setFont(UIUtils.FONT_BOLD);
+
+        nextPageButton = new JButton("Next ▶");
+        nextPageButton.setFont(UIUtils.FONT_BOLD);
+        nextPageButton.setPreferredSize(new Dimension(80, 28));
+        nextPageButton.addActionListener(e -> {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderPage();
+            }
+        });
+
+        paginationPanel.add(prevPageButton);
+        paginationPanel.add(pageLabel);
+        paginationPanel.add(nextPageButton);
+
+        GridBagConstraints mtGbc = new GridBagConstraints();
+        mtGbc.fill = GridBagConstraints.HORIZONTAL;
+        mtGbc.gridx = 0;
+        mtGbc.weightx = 1.0;
+
+        mtGbc.gridy = 0;
+        mtGbc.weighty = 0.0;
+        mainTablePanel.add(scrollPane, mtGbc);
+
+        mtGbc.gridy = 1;
+        mtGbc.weighty = 0.0;
+        mtGbc.insets = new Insets(12, 0, 0, 0); // 12px margin below the table
+        mainTablePanel.add(paginationPanel, mtGbc);
+
+        mtGbc.gridy = 2;
+        mtGbc.weighty = 1.0;
+        mtGbc.fill = GridBagConstraints.BOTH;
+        mainTablePanel.add(Box.createVerticalGlue(), mtGbc);
+
         add(mainTablePanel, BorderLayout.CENTER);
     }
 
@@ -274,7 +342,7 @@ public class RoomManagementPanel extends JPanel {
                 allRooms = roomService.getAllActiveRoomsWithOccupancy();
             }
             updateSummaryCards();
-            filterAndRender();
+            filterAndRenderCurrentPage();
         });
     }
 
@@ -309,6 +377,11 @@ public class RoomManagementPanel extends JPanel {
     }
 
     private void filterAndRender() {
+        currentPage = 1;
+        filterAndRenderCurrentPage();
+    }
+
+    private void filterAndRenderCurrentPage() {
         String searchText = searchField.getText().trim().toLowerCase();
         String typeFilter = (String) typeFilterCombo.getSelectedItem();
         String statusFilter = (String) statusFilterCombo.getSelectedItem();
@@ -328,8 +401,21 @@ public class RoomManagementPanel extends JPanel {
 
         this.currentFilteredRooms = filtered;
 
+        totalPages = (int) Math.ceil((double) currentFilteredRooms.size() / PAGE_SIZE);
+        if (totalPages <= 0) totalPages = 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        renderPage();
+    }
+
+    private void renderPage() {
         tableModel.setRowCount(0);
-        for (Room r : filtered) {
+
+        int startIdx = (currentPage - 1) * PAGE_SIZE;
+        int endIdx = Math.min(startIdx + PAGE_SIZE, currentFilteredRooms.size());
+
+        for (int i = startIdx; i < endIdx; i++) {
+            Room r = currentFilteredRooms.get(i);
             tableModel.addRow(new Object[]{
                     r.getRoomNumber(),
                     r.getRoomType(),
@@ -341,6 +427,22 @@ public class RoomManagementPanel extends JPanel {
                     r.getCheckOutDate() == null ? "" : r.getCheckOutDate().toString()
             });
         }
+
+        // Add dummy rows to keep table height consistent on every page so the layout remains fixed.
+        int renderedCount = endIdx - startIdx;
+        if (renderedCount < PAGE_SIZE) {
+            for (int i = renderedCount; i < PAGE_SIZE; i++) {
+                tableModel.addRow(new Object[]{"", "", "", "", "", "", "", ""});
+            }
+        }
+
+        pageLabel.setText(String.format("Page %d of %d", currentPage, totalPages));
+        prevPageButton.setEnabled(currentPage > 1);
+        nextPageButton.setEnabled(currentPage < totalPages);
+        if (paginationPanel != null) {
+            paginationPanel.setVisible(totalPages > 1);
+        }
+
         UIUtils.formatTableColumns(table);
     }
 
@@ -374,7 +476,11 @@ public class RoomManagementPanel extends JPanel {
             UIUtils.showInfo(this, "Archived rooms cannot be edited. Restore the room first.");
             return;
         }
-        int roomId = currentFilteredRooms.get(row).getRoomId();
+        int modelRowIndex = (currentPage - 1) * PAGE_SIZE + row;
+        if (modelRowIndex >= currentFilteredRooms.size()) {
+            return; // Selected a dummy row
+        }
+        int roomId = currentFilteredRooms.get(modelRowIndex).getRoomId();
         UIUtils.runSafely(this, () -> {
             Room room = roomService.getRoomOrThrow(roomId);
             RoomFormDialog dialog = new RoomFormDialog(SwingUtilities.getWindowAncestor(this), room);
@@ -391,8 +497,12 @@ public class RoomManagementPanel extends JPanel {
             UIUtils.showInfo(this, "Please select a room to delete.");
             return;
         }
-        int roomId = currentFilteredRooms.get(row).getRoomId();
-        String roomNumber = currentFilteredRooms.get(row).getRoomNumber();
+        int modelRowIndex = (currentPage - 1) * PAGE_SIZE + row;
+        if (modelRowIndex >= currentFilteredRooms.size()) {
+            return; // Selected a dummy row
+        }
+        int roomId = currentFilteredRooms.get(modelRowIndex).getRoomId();
+        String roomNumber = currentFilteredRooms.get(modelRowIndex).getRoomNumber();
 
         if (viewingArchived) {
             boolean confirmed = UIUtils.confirm(this,
