@@ -100,7 +100,7 @@ public class RoomManagementPanel extends JPanel {
         editButton = UIUtils.createStyledButton("Edit Room", UIUtils.ACCENT_COLOR);
         editButton.addActionListener(e -> handleEdit());
 
-        deleteButton = UIUtils.createStyledButton("Delete Room", UIUtils.DANGER_COLOR);
+        deleteButton = UIUtils.createStyledButton("Archive", UIUtils.DANGER_COLOR);
         deleteButton.addActionListener(e -> handleDelete());
 
         deletePermanentlyButton = UIUtils.createStyledButton("Delete Permanently", UIUtils.DANGER_COLOR);
@@ -247,6 +247,7 @@ public class RoomManagementPanel extends JPanel {
             }
         };
         UIUtils.styleTable(table);
+        table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
         table.getColumnModel().getColumn(5).setCellRenderer(new StatusBadgeRenderer());
 
@@ -470,7 +471,7 @@ public class RoomManagementPanel extends JPanel {
             toggleArchiveButton.setText("View Archived");
             addButton.setVisible(true);
             editButton.setVisible(true);
-            deleteButton.setText("Delete Room");
+            deleteButton.setText("Archive");
             deleteButton.setBackground(UIUtils.DANGER_COLOR);
             deletePermanentlyButton.setVisible(false);
         }
@@ -511,36 +512,44 @@ public class RoomManagementPanel extends JPanel {
     }
 
     private void handleDelete() {
-        int row = table.getSelectedRow();
-        if (row < 0) {
-            UIUtils.showInfo(this, "Please select a room to delete.");
+        int[] selectedRows = table.getSelectedRows();
+        if (selectedRows.length == 0) {
+            UIUtils.showInfo(this, "Please select at least one room.");
             return;
         }
-        int modelRowIndex = (currentPage - 1) * PAGE_SIZE + row;
-        if (modelRowIndex >= currentFilteredRooms.size()) {
-            return; // Selected a dummy row
+        List<Integer> roomIds = new ArrayList<>();
+        for (int row : selectedRows) {
+            int modelRowIndex = (currentPage - 1) * PAGE_SIZE + row;
+            if (modelRowIndex < currentFilteredRooms.size()) {
+                roomIds.add(currentFilteredRooms.get(modelRowIndex).getRoomId());
+            }
         }
-        int roomId = currentFilteredRooms.get(modelRowIndex).getRoomId();
-        String roomNumber = currentFilteredRooms.get(modelRowIndex).getRoomNumber();
+        if (roomIds.isEmpty()) {
+            return;
+        }
 
         if (viewingArchived) {
             boolean confirmed = UIUtils.confirm(this,
-                    "Restore room " + roomNumber + " back to active rooms?", "Confirm Restore");
+                    "Restore selected room(s) back to active rooms?", "Confirm Restore");
             if (confirmed) {
                 UIUtils.runSafely(this, () -> {
-                    roomService.restoreRoom(roomId);
-                    UIUtils.showSuccess(this, "Room restored successfully.");
+                    for (int roomId : roomIds) {
+                        roomService.restoreRoom(roomId);
+                    }
+                    UIUtils.showSuccess(this, "Selected room(s) restored successfully.");
                     refreshAllData();
                 });
             }
         } else {
             boolean confirmed = UIUtils.confirm(this,
-                    "Move room " + roomNumber + " to archive? This is a soft delete; the record is not permanently lost.",
-                    "Confirm Delete");
+                    "Move selected room(s) to archive? This is a soft delete; the record is not permanently lost.",
+                    "Confirm Archive");
             if (confirmed) {
                 UIUtils.runSafely(this, () -> {
-                    roomService.softDeleteRoom(roomId);
-                    UIUtils.showSuccess(this, "Room archived successfully.");
+                    for (int roomId : roomIds) {
+                        roomService.softDeleteRoom(roomId);
+                    }
+                    UIUtils.showSuccess(this, "Selected room(s) archived successfully.");
                     refreshAllData();
                 });
             }
@@ -548,22 +557,29 @@ public class RoomManagementPanel extends JPanel {
     }
 
     private void handleDeletePermanently() {
-        int row = table.getSelectedRow();
-        if (row < 0) {
-            UIUtils.showInfo(this, "Please select a room to delete permanently.");
+        int[] selectedRows = table.getSelectedRows();
+        if (selectedRows.length == 0) {
+            UIUtils.showInfo(this, "Please select at least one room to delete permanently.");
             return;
         }
-        int modelRowIndex = (currentPage - 1) * PAGE_SIZE + row;
-        if (modelRowIndex >= currentFilteredRooms.size()) {
-            return; // Selected a dummy row
+        List<Integer> roomIds = new ArrayList<>();
+        for (int row : selectedRows) {
+            int modelRowIndex = (currentPage - 1) * PAGE_SIZE + row;
+            if (modelRowIndex < currentFilteredRooms.size()) {
+                roomIds.add(currentFilteredRooms.get(modelRowIndex).getRoomId());
+            }
         }
-        int roomId = currentFilteredRooms.get(modelRowIndex).getRoomId();
+        if (roomIds.isEmpty()) {
+            return;
+        }
 
         boolean confirmed = UIUtils.confirmPermanentDelete(this);
         if (confirmed) {
             UIUtils.runSafely(this, () -> {
-                roomService.deleteRoomPermanently(roomId);
-                UIUtils.showSuccess(this, "Room permanently deleted successfully.");
+                for (int roomId : roomIds) {
+                    roomService.deleteRoomPermanently(roomId);
+                }
+                UIUtils.showSuccess(this, "Selected room(s) permanently deleted successfully.");
                 refreshAllData();
             });
         }

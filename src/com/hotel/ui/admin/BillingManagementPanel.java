@@ -143,6 +143,7 @@ public class BillingManagementPanel extends JPanel {
             }
         };
         UIUtils.styleTable(table);
+        table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(new LineBorder(new Color(230, 233, 237), 1, true));
@@ -215,7 +216,9 @@ public class BillingManagementPanel extends JPanel {
         if (viewingArchived) {
             titleLabel.setText("Billing Management — Archived Bills");
             toggleArchiveButton.setText("View Active");
+            viewDetailsButton.setVisible(false);
             editButton.setVisible(false);
+            printButton.setVisible(false);
             deleteButton.setText("Restore");
             deleteButton.setBackground(UIUtils.SUCCESS_COLOR);
             deletePermanentlyButton.setVisible(true);
@@ -223,7 +226,9 @@ public class BillingManagementPanel extends JPanel {
         } else {
             titleLabel.setText("Billing Management");
             toggleArchiveButton.setText("View Archived");
+            viewDetailsButton.setVisible(true);
             editButton.setVisible(true);
+            printButton.setVisible(true);
             deleteButton.setText("Archive");
             deleteButton.setBackground(UIUtils.DANGER_COLOR);
             deletePermanentlyButton.setVisible(false);
@@ -426,31 +431,38 @@ public class BillingManagementPanel extends JPanel {
     }
 
     private void handleDelete() {
-        int row = table.getSelectedRow();
-        if (row < 0) {
-            UIUtils.showInfo(this, "Please select a bill to archive/restore.");
+        int[] selectedRows = table.getSelectedRows();
+        if (selectedRows.length == 0) {
+            UIUtils.showInfo(this, "Please select at least one bill.");
             return;
         }
-        int billId = (int) tableModel.getValueAt(row, 0);
+        List<Integer> billIds = new ArrayList<>();
+        for (int row : selectedRows) {
+            billIds.add((int) tableModel.getValueAt(row, 0));
+        }
 
         if (viewingArchived) {
             boolean confirmed = UIUtils.confirm(this,
-                    "Restore bill #" + billId + " back to active bills?", "Confirm Restore");
+                    "Restore selected bill(s) back to active bills?", "Confirm Restore");
             if (confirmed) {
                 UIUtils.runSafely(this, () -> {
-                    billingService.restoreBilling(billId);
-                    UIUtils.showSuccess(this, "Bill restored successfully.");
+                    for (int billId : billIds) {
+                        billingService.restoreBilling(billId);
+                    }
+                    UIUtils.showSuccess(this, "Selected bill(s) restored successfully.");
                     loadArchivedBillings();
                 });
             }
         } else {
             boolean confirmed = UIUtils.confirm(this,
-                    "Move bill #" + billId + " to archive? This is a soft delete; the record is not permanently lost.",
+                    "Move selected bill(s) to archive? This is a soft delete; the record is not permanently lost.",
                     "Confirm Archive");
             if (confirmed) {
                 UIUtils.runSafely(this, () -> {
-                    billingService.softDeleteBilling(billId);
-                    UIUtils.showSuccess(this, "Bill archived successfully.");
+                    for (int billId : billIds) {
+                        billingService.softDeleteBilling(billId);
+                    }
+                    UIUtils.showSuccess(this, "Selected bill(s) archived successfully.");
                     loadActiveBillings();
                 });
             }
@@ -458,18 +470,23 @@ public class BillingManagementPanel extends JPanel {
     }
 
     private void handleDeletePermanently() {
-        int row = table.getSelectedRow();
-        if (row < 0) {
-            UIUtils.showInfo(this, "Please select a bill to delete permanently.");
+        int[] selectedRows = table.getSelectedRows();
+        if (selectedRows.length == 0) {
+            UIUtils.showInfo(this, "Please select at least one bill to delete permanently.");
             return;
         }
-        int billId = (int) tableModel.getValueAt(row, 0);
+        List<Integer> billIds = new ArrayList<>();
+        for (int row : selectedRows) {
+            billIds.add((int) tableModel.getValueAt(row, 0));
+        }
 
         boolean confirmed = UIUtils.confirmPermanentDelete(this);
         if (confirmed) {
             UIUtils.runSafely(this, () -> {
-                billingService.deleteBillingPermanently(billId);
-                UIUtils.showSuccess(this, "Bill permanently deleted successfully.");
+                for (int billId : billIds) {
+                    billingService.deleteBillingPermanently(billId);
+                }
+                UIUtils.showSuccess(this, "Selected bill(s) permanently deleted successfully.");
                 loadArchivedBillings();
             });
         }

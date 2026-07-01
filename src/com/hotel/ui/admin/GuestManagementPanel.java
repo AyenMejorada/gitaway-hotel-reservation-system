@@ -63,7 +63,7 @@ public class GuestManagementPanel extends JPanel {
         editButton = UIUtils.createStyledButton("Edit", UIUtils.ACCENT_COLOR);
         editButton.addActionListener(e -> handleEdit());
 
-        deleteButton = UIUtils.createStyledButton("Delete", UIUtils.DANGER_COLOR);
+        deleteButton = UIUtils.createStyledButton("Archive", UIUtils.DANGER_COLOR);
         deleteButton.addActionListener(e -> handleDelete());
 
         deletePermanentlyButton = UIUtils.createStyledButton("Delete Permanently", UIUtils.DANGER_COLOR);
@@ -129,6 +129,7 @@ public class GuestManagementPanel extends JPanel {
             }
         };
         UIUtils.styleTable(table);
+        table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(new LineBorder(new Color(230, 233, 237), 1, true));
@@ -227,7 +228,7 @@ public class GuestManagementPanel extends JPanel {
             toggleArchiveButton.setText("View Archived");
             addButton.setVisible(true);
             editButton.setVisible(true);
-            deleteButton.setText("Delete");
+            deleteButton.setText("Archive");
             deleteButton.setBackground(UIUtils.DANGER_COLOR);
             deletePermanentlyButton.setVisible(false);
             loadActiveGuests();
@@ -272,32 +273,38 @@ public class GuestManagementPanel extends JPanel {
     }
 
     private void handleDelete() {
-        int row = table.getSelectedRow();
-        if (row < 0) {
-            UIUtils.showInfo(this, "Please select a guest to delete.");
+        int[] selectedRows = table.getSelectedRows();
+        if (selectedRows.length == 0) {
+            UIUtils.showInfo(this, "Please select at least one guest.");
             return;
         }
-        int guestId = (int) tableModel.getValueAt(row, 0);
-        String guestName = tableModel.getValueAt(row, 1) + " " + tableModel.getValueAt(row, 2);
+        List<Integer> guestIds = new ArrayList<>();
+        for (int row : selectedRows) {
+            guestIds.add((int) tableModel.getValueAt(row, 0));
+        }
 
         if (viewingArchived) {
             boolean confirmed = UIUtils.confirm(this,
-                    "Restore guest " + guestName + " back to active guests?", "Confirm Restore");
+                    "Restore selected guest(s) back to active guests?", "Confirm Restore");
             if (confirmed) {
                 UIUtils.runSafely(this, () -> {
-                    guestService.restoreGuest(guestId);
-                    UIUtils.showSuccess(this, "Guest restored successfully.");
+                    for (int guestId : guestIds) {
+                        guestService.restoreGuest(guestId);
+                    }
+                    UIUtils.showSuccess(this, "Selected guest(s) restored successfully.");
                     loadArchivedGuests();
                 });
             }
         } else {
             boolean confirmed = UIUtils.confirm(this,
-                    "Move guest " + guestName + " to archive? This is a soft delete; the record is not permanently lost.",
-                    "Confirm Delete");
+                    "Move selected guest(s) to archive? This is a soft delete; the record is not permanently lost.",
+                    "Confirm Archive");
             if (confirmed) {
                 UIUtils.runSafely(this, () -> {
-                    guestService.softDeleteGuest(guestId);
-                    UIUtils.showSuccess(this, "Guest archived successfully.");
+                    for (int guestId : guestIds) {
+                        guestService.softDeleteGuest(guestId);
+                    }
+                    UIUtils.showSuccess(this, "Selected guest(s) archived successfully.");
                     loadActiveGuests();
                 });
             }
@@ -305,18 +312,23 @@ public class GuestManagementPanel extends JPanel {
     }
 
     private void handleDeletePermanently() {
-        int row = table.getSelectedRow();
-        if (row < 0) {
-            UIUtils.showInfo(this, "Please select a guest to delete permanently.");
+        int[] selectedRows = table.getSelectedRows();
+        if (selectedRows.length == 0) {
+            UIUtils.showInfo(this, "Please select at least one guest to delete permanently.");
             return;
         }
-        int guestId = (int) tableModel.getValueAt(row, 0);
+        List<Integer> guestIds = new ArrayList<>();
+        for (int row : selectedRows) {
+            guestIds.add((int) tableModel.getValueAt(row, 0));
+        }
 
         boolean confirmed = UIUtils.confirmPermanentDelete(this);
         if (confirmed) {
             UIUtils.runSafely(this, () -> {
-                guestService.deleteGuestPermanently(guestId);
-                UIUtils.showSuccess(this, "Guest permanently deleted successfully.");
+                for (int guestId : guestIds) {
+                    guestService.deleteGuestPermanently(guestId);
+                }
+                UIUtils.showSuccess(this, "Selected guest(s) permanently deleted successfully.");
                 loadArchivedGuests();
             });
         }

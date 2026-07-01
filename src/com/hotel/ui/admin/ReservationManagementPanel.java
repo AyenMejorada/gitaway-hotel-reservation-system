@@ -144,7 +144,7 @@ public class ReservationManagementPanel extends JPanel {
         editButton.setEnabled(false);
         editButton.addActionListener(e -> handleEdit());
 
-        deleteButton = UIUtils.createStyledButton("Delete", UIUtils.DANGER_COLOR);
+        deleteButton = UIUtils.createStyledButton("Archive", UIUtils.DANGER_COLOR);
         deleteButton.setEnabled(false);
         deleteButton.addActionListener(e -> handleDelete());
 
@@ -248,6 +248,7 @@ public class ReservationManagementPanel extends JPanel {
             }
         };
         UIUtils.styleTable(table);
+        table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         table.getTableHeader().setReorderingAllowed(false);
         table.getColumnModel().getColumn(8).setCellRenderer(new StatusBadgeRenderer());
 
@@ -813,7 +814,7 @@ public class ReservationManagementPanel extends JPanel {
         } else {
             titleLabel.setText("Reservation Management");
             toggleArchiveButton.setText("View Archived");
-            deleteButton.setText("Delete");
+            deleteButton.setText("Archive");
             deleteButton.setBackground(UIUtils.DANGER_COLOR);
             addButton.setVisible(true);
             assignRoomButton.setVisible(true);
@@ -970,36 +971,44 @@ public class ReservationManagementPanel extends JPanel {
     }
 
     private void handleDelete() {
-        int selectedViewRow = table.getSelectedRow();
-        if (selectedViewRow < 0) {
-            UIUtils.showInfo(this, "Please select a reservation to process.");
+        int[] selectedRows = table.getSelectedRows();
+        if (selectedRows.length == 0) {
+            UIUtils.showInfo(this, "Please select at least one reservation.");
+            return;
+        }
+        List<Integer> reservationIds = new ArrayList<>();
+        for (int row : selectedRows) {
+            int modelRowIndex = (currentPage - 1) * pageSize + row;
+            if (modelRowIndex < currentFilteredList.size()) {
+                reservationIds.add(currentFilteredList.get(modelRowIndex).getReservationId());
+            }
+        }
+        if (reservationIds.isEmpty()) {
             return;
         }
 
-        int modelRowIndex = (currentPage - 1) * pageSize + selectedViewRow;
-        if (modelRowIndex >= currentFilteredList.size()) return;
-
-        Reservation reservation = currentFilteredList.get(modelRowIndex);
-        int reservationId = reservation.getReservationId();
-
         if (viewingArchived) {
             boolean confirmed = UIUtils.confirm(this,
-                    "Restore reservation #" + reservationId + " back to active reservations?", "Confirm Restore");
+                    "Restore selected reservation(s) back to active reservations?", "Confirm Restore");
             if (confirmed) {
                 UIUtils.runSafely(this, () -> {
-                    reservationService.restoreReservation(reservationId);
-                    UIUtils.showSuccess(this, "Reservation restored successfully.");
+                    for (int reservationId : reservationIds) {
+                        reservationService.restoreReservation(reservationId);
+                    }
+                    UIUtils.showSuccess(this, "Selected reservation(s) restored successfully.");
                     loadReservations();
                 });
             }
         } else {
             boolean confirmed = UIUtils.confirm(this,
-                    "Move reservation #" + reservationId + " to archive? This is a soft delete.",
-                    "Confirm Delete");
+                    "Move selected reservation(s) to archive? This is a soft delete.",
+                    "Confirm Archive");
             if (confirmed) {
                 UIUtils.runSafely(this, () -> {
-                    reservationService.softDeleteReservation(reservationId);
-                    UIUtils.showSuccess(this, "Reservation archived successfully.");
+                    for (int reservationId : reservationIds) {
+                        reservationService.softDeleteReservation(reservationId);
+                    }
+                    UIUtils.showSuccess(this, "Selected reservation(s) archived successfully.");
                     loadReservations();
                 });
             }
@@ -1007,23 +1016,29 @@ public class ReservationManagementPanel extends JPanel {
     }
 
     private void handleDeletePermanently() {
-        int selectedViewRow = table.getSelectedRow();
-        if (selectedViewRow < 0) {
-            UIUtils.showInfo(this, "Please select a reservation to delete permanently.");
+        int[] selectedRows = table.getSelectedRows();
+        if (selectedRows.length == 0) {
+            UIUtils.showInfo(this, "Please select at least one reservation to delete permanently.");
             return;
         }
-
-        int modelRowIndex = (currentPage - 1) * pageSize + selectedViewRow;
-        if (modelRowIndex >= currentFilteredList.size()) return;
-
-        Reservation reservation = currentFilteredList.get(modelRowIndex);
-        int reservationId = reservation.getReservationId();
+        List<Integer> reservationIds = new ArrayList<>();
+        for (int row : selectedRows) {
+            int modelRowIndex = (currentPage - 1) * pageSize + row;
+            if (modelRowIndex < currentFilteredList.size()) {
+                reservationIds.add(currentFilteredList.get(modelRowIndex).getReservationId());
+            }
+        }
+        if (reservationIds.isEmpty()) {
+            return;
+        }
 
         boolean confirmed = UIUtils.confirmPermanentDelete(this);
         if (confirmed) {
             UIUtils.runSafely(this, () -> {
-                reservationService.deleteReservationPermanently(reservationId);
-                UIUtils.showSuccess(this, "Reservation permanently deleted successfully.");
+                for (int reservationId : reservationIds) {
+                    reservationService.deleteReservationPermanently(reservationId);
+                }
+                UIUtils.showSuccess(this, "Selected reservation(s) permanently deleted successfully.");
                 loadReservations();
             });
         }

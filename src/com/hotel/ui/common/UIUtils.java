@@ -233,7 +233,7 @@ public final class UIUtils {
         Object[] options = {"Delete Permanently", "Cancel"};
         int result = JOptionPane.showOptionDialog(
                 parent,
-                "Are you sure you want to permanently delete this record?\n\nThis action cannot be undone.",
+                "Are you sure you want to permanently delete the selected record(s)?\n\nThis action cannot be undone.",
                 "Confirm Permanent Deletion",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.WARNING_MESSAGE,
