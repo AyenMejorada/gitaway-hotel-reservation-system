@@ -32,7 +32,7 @@ public class GuestManagementPanel extends JPanel {
     private List<Guest> allGuests = new ArrayList<>();
 
     private static final String[] COLUMNS = {
-            "ID", "First Name", "Last Name", "Email", "Phone", "Address", "ID Number"
+            "ID", "First Name", "Last Name", "Email", "Phone"
     };
 
     public GuestManagementPanel() {
@@ -195,9 +195,7 @@ public class GuestManagementPanel extends JPanel {
                     g.getFirstName(),
                     g.getLastName(),
                     g.getEmail(),
-                    g.getPhone(),
-                    g.getAddress(),
-                    g.getIdNumber()
+                    g.getPhone()
             });
         }
         UIUtils.formatTableColumns(table);

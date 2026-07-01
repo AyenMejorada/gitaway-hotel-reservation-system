@@ -242,6 +242,12 @@ public class DatabaseConnection {
                             System.out.println("Migration error (add room_type): " + ex.getMessage());
                         }
                     }
+                    
+                    try {
+                        stmt.executeUpdate("UPDATE guests SET phone = '09175557456' WHERE CONCAT(first_name, ' ', last_name) = 'Juan Dela Cruz' OR full_name = 'Juan Dela Cruz'");
+                    } catch (Exception ex) {
+                        System.out.println("Migration warning (update Juan Dela Cruz phone): " + ex.getMessage());
+                    }
                 }
             }
         } catch (Exception e) {

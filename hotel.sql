@@ -83,7 +83,7 @@ INSERT INTO users (username, password, role) VALUES
 ('customer1', 'cust123', 0);
 
 INSERT INTO guests (user_id, full_name, email, phone, address) VALUES
-(2, 'Juan Dela Cruz', 'juan@email.com', '09171234567', 'Manila, Philippines');
+(2, 'Juan Dela Cruz', 'juan@email.com', '09175557456', 'Manila, Philippines');
 
 INSERT INTO rooms (room_number, room_type, price_per_night, capacity, status, description) VALUES
 ('101', 'Standard', 1500.00, 1, 'Available', 'Single bed, air-conditioned room'),
