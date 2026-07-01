@@ -74,10 +74,8 @@ public class GuestService {
     }
 
     private void validateGuestFields(String firstName, String lastName, String email, String phone) {
-        Validator.requireNonBlank(firstName, "First name");
-        Validator.requireMaxLength(firstName, 50, "First name");
-        Validator.requireNonBlank(lastName, "Last name");
-        Validator.requireMaxLength(lastName, 50, "Last name");
+        Validator.requireNonBlank(firstName, "First name", 50);
+        Validator.requireNonBlank(lastName, "Last name", 50);
         Validator.validateEmail(email);
         Validator.validatePhone(phone);
     }

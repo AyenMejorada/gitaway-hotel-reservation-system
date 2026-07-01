@@ -19,11 +19,13 @@ public class AdminMainFrame extends JFrame {
     private final JPanel contentPanel = new JPanel(cardLayout);
 
     static final String CARD_DASHBOARD = "DASHBOARD";
+    static final String CARD_ROOMS = "ROOMS";
     static final String CARD_RESERVATIONS = "RESERVATIONS";
     static final String CARD_GUESTS = "GUESTS";
     static final String CARD_BILLING = "BILLING";
 
     private DashboardPanel dashboardPanel;
+    private RoomManagementPanel roomPanel;
     private ReservationManagementPanel reservationPanel;
     private GuestManagementPanel guestPanel;
     private BillingManagementPanel billingManagementPanel;
@@ -72,6 +74,7 @@ public class AdminMainFrame extends JFrame {
         sidebar.add(welcome);
 
         sidebar.add(createNavButton("Dashboard", CARD_DASHBOARD, true));
+        sidebar.add(createNavButton("Room Management", CARD_ROOMS, false));
         sidebar.add(createNavButton("Reservation Management", CARD_RESERVATIONS, false));
         sidebar.add(createNavButton("Guest Management", CARD_GUESTS, false));
         sidebar.add(createNavButton("Billing & Payments", CARD_BILLING, false));
@@ -140,11 +143,13 @@ public class AdminMainFrame extends JFrame {
         contentPanel.setBackground(UIUtils.BACKGROUND_COLOR);
 
         dashboardPanel = new DashboardPanel();
+        roomPanel = new RoomManagementPanel();
         reservationPanel = new ReservationManagementPanel();
         guestPanel = new GuestManagementPanel();
         billingManagementPanel = new BillingManagementPanel();
 
         contentPanel.add(dashboardPanel, CARD_DASHBOARD);
+        contentPanel.add(roomPanel, CARD_ROOMS);
         contentPanel.add(reservationPanel, CARD_RESERVATIONS);
         contentPanel.add(guestPanel, CARD_GUESTS);
         contentPanel.add(billingManagementPanel, CARD_BILLING);
@@ -155,6 +160,8 @@ public class AdminMainFrame extends JFrame {
     private void showCard(String cardName) {
         if (cardName.equals(CARD_DASHBOARD) && dashboardPanel != null) {
             dashboardPanel.refreshCurrentView();
+        } else if (cardName.equals(CARD_ROOMS) && roomPanel != null) {
+            roomPanel.refreshCurrentView();
         } else if (cardName.equals(CARD_RESERVATIONS) && reservationPanel != null) {
             reservationPanel.refreshCurrentView();
         } else if (cardName.equals(CARD_GUESTS) && guestPanel != null) {

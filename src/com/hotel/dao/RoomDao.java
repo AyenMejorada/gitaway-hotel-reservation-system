@@ -16,7 +16,10 @@ public interface RoomDao {
 
     void update(Room room);
 
-    /** Soft-delete: flips is_deleted to true. Row remains in the table. */
+    /**
+     * Soft delete: marks record as inactive (is_deleted flag) instead of removing the row,
+     * to preserve referential integrity for historical reservations/billing records.
+     */
     void softDelete(int roomId);
 
     /** Restores a previously soft-deleted room. */

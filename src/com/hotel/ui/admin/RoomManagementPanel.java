@@ -14,37 +14,43 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Dedicated module for Room Management (CRUD, filters, and list).
- * Moved from the Dashboard to reduce cognitive load and visual clutter.
+ * Dedicated Room Management screen: contains room statistics, filter controls,
+ * complete room inventory table, and CRUD actions (Add, Edit, Soft-delete, View Archived).
  */
 public class RoomManagementPanel extends JPanel {
 
     private final RoomService roomService = new RoomService();
 
+    // Table elements
     private ReadOnlyTableModel tableModel;
     private JTable table;
     private boolean viewingArchived = false;
 
+    // Buttons
     private JButton toggleArchiveButton;
     private JLabel titleLabel;
 
+    // Filters & Search
     private PlaceholderTextField searchField;
     private JComboBox<String> typeFilterCombo;
     private JComboBox<String> statusFilterCombo;
     private JComboBox<String> sortByCombo;
 
+    // Summary Card Labels
     private JLabel totalRoomsVal;
     private JLabel availableRoomsVal;
     private JLabel occupiedRoomsVal;
     private JLabel reservedRoomsVal;
     private JLabel maintenanceRoomsVal;
 
+    // Master list of loaded rooms
     private List<Room> allRooms = new ArrayList<>();
 
     private static final String[] COLUMNS = {
@@ -68,7 +74,7 @@ public class RoomManagementPanel extends JPanel {
         // --- 1. HEADER ROW ---
         JPanel headerRow = new JPanel(new BorderLayout());
         headerRow.setOpaque(false);
-        titleLabel = UIUtils.createSectionTitle("Room Management");
+        titleLabel = UIUtils.createSectionTitle("Room Inventory & Management");
         headerRow.add(titleLabel, BorderLayout.WEST);
 
         JPanel buttonsRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
@@ -77,10 +83,10 @@ public class RoomManagementPanel extends JPanel {
         JButton addButton = UIUtils.createStyledButton("Add Room", UIUtils.SUCCESS_COLOR);
         addButton.addActionListener(e -> handleAdd());
 
-        JButton editButton = UIUtils.createStyledButton("Edit", UIUtils.ACCENT_COLOR);
+        JButton editButton = UIUtils.createStyledButton("Edit Room", UIUtils.ACCENT_COLOR);
         editButton.addActionListener(e -> handleEdit());
 
-        JButton deleteButton = UIUtils.createStyledButton("Delete", UIUtils.DANGER_COLOR);
+        JButton deleteButton = UIUtils.createStyledButton("Delete Room", UIUtils.DANGER_COLOR);
         deleteButton.addActionListener(e -> handleDelete());
 
         toggleArchiveButton = UIUtils.createStyledButton("View Archived", UIUtils.PRIMARY_COLOR);
@@ -94,10 +100,10 @@ public class RoomManagementPanel extends JPanel {
         northContainer.add(headerRow);
         northContainer.add(Box.createRigidArea(new Dimension(0, 16)));
 
-        // --- 2. SUMMARY CARDS (5 cards in 1 row) ---
+        // --- 2. SUMMARY CARDS (5 Cards in 1x5 grid) ---
         JPanel summaryPanel = new JPanel(new GridLayout(1, 5, 12, 12));
         summaryPanel.setOpaque(false);
-        summaryPanel.setPreferredSize(new Dimension(0, 90));
+        summaryPanel.setPreferredSize(new Dimension(0, 85));
 
         totalRoomsVal = new JLabel("0");
         availableRoomsVal = new JLabel("0");
@@ -109,7 +115,7 @@ public class RoomManagementPanel extends JPanel {
         summaryPanel.add(createCard("Available Rooms", availableRoomsVal, new Color(30, 115, 45)));
         summaryPanel.add(createCard("Occupied Rooms", occupiedRoomsVal, new Color(185, 30, 30)));
         summaryPanel.add(createCard("Reserved Rooms", reservedRoomsVal, new Color(25, 95, 180)));
-        summaryPanel.add(createCard("Under Maintenance", maintenanceRoomsVal, new Color(200, 100, 0)));
+        summaryPanel.add(createCard("Maintenance Rooms", maintenanceRoomsVal, new Color(200, 100, 0)));
         northContainer.add(summaryPanel);
         northContainer.add(Box.createRigidArea(new Dimension(0, 16)));
 
@@ -198,7 +204,10 @@ public class RoomManagementPanel extends JPanel {
         northContainer.add(controlsPanel);
         add(northContainer, BorderLayout.NORTH);
 
-        // --- 4. ROOM TABLE ---
+        // Main Room Inventory Table
+        JPanel mainTablePanel = new JPanel(new BorderLayout());
+        mainTablePanel.setOpaque(false);
+
         tableModel = new ReadOnlyTableModel(COLUMNS, 0);
         table = new JTable(tableModel) {
             @Override
@@ -209,7 +218,7 @@ public class RoomManagementPanel extends JPanel {
                     g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                     g2.setColor(Color.GRAY);
                     g2.setFont(UIUtils.FONT_HEADER);
-                    String text = "No rooms match the filter criteria.";
+                    String text = "No matching records found.";
                     FontMetrics fm = g2.getFontMetrics();
                     int x = (getWidth() - fm.stringWidth(text)) / 2;
                     int y = getHeight() / 2;
@@ -220,13 +229,12 @@ public class RoomManagementPanel extends JPanel {
         };
         UIUtils.styleTable(table);
         table.getTableHeader().setReorderingAllowed(false);
-
-        // Format Status badge color
         table.getColumnModel().getColumn(5).setCellRenderer(new StatusBadgeRenderer());
 
         JScrollPane scrollPane = new JScrollPane(table);
         scrollPane.setBorder(new LineBorder(new Color(230, 233, 237), 1, true));
-        add(scrollPane, BorderLayout.CENTER);
+        mainTablePanel.add(scrollPane, BorderLayout.CENTER);
+        add(mainTablePanel, BorderLayout.CENTER);
     }
 
     private JPanel createCard(String title, JLabel valueLabel, Color accent) {
@@ -234,24 +242,27 @@ public class RoomManagementPanel extends JPanel {
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBackground(Color.WHITE);
         card.setBorder(BorderFactory.createCompoundBorder(
-                new LineBorder(new Color(230, 233, 237), 1, true),
-                BorderFactory.createEmptyBorder(10, 12, 10, 12)
+                BorderFactory.createMatteBorder(0, 5, 0, 0, accent),
+                BorderFactory.createEmptyBorder(12, 16, 12, 16)
         ));
 
         JLabel titleLabel = new JLabel(title);
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
         titleLabel.setForeground(Color.GRAY);
-        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        valueLabel.setForeground(accent);
-        valueLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        valueLabel.setForeground(UIUtils.PRIMARY_COLOR);
+        valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         card.add(titleLabel);
         card.add(Box.createRigidArea(new Dimension(0, 4)));
         card.add(valueLabel);
-
         return card;
+    }
+
+    public void refreshCurrentView() {
+        refreshAllData();
     }
 
     private void refreshAllData() {
@@ -334,10 +345,10 @@ public class RoomManagementPanel extends JPanel {
     private void toggleArchivedView() {
         viewingArchived = !viewingArchived;
         if (viewingArchived) {
-            titleLabel.setText("Room Management — Archived Rooms");
+            titleLabel.setText("Room Inventory & Management — Archived");
             toggleArchiveButton.setText("View Active");
         } else {
-            titleLabel.setText("Room Management");
+            titleLabel.setText("Room Inventory & Management");
             toggleArchiveButton.setText("View Archived");
         }
         refreshAllData();

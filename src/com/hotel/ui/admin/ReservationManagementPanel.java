@@ -67,6 +67,8 @@ public class ReservationManagementPanel extends JPanel {
     private JButton nextPageButton;
 
     // Details Panel Elements
+    private CardLayout rightCardLayout;
+    private JPanel rightCardContainer;
     private JPanel detailsCard;
     private JLabel detailIdVal;
     private JLabel detailGuestVal;
@@ -308,6 +310,22 @@ public class ReservationManagementPanel extends JPanel {
         rightPanel.setOpaque(false);
         rightPanel.setBorder(BorderFactory.createEmptyBorder(0, 16, 0, 0));
 
+        rightCardLayout = new CardLayout();
+        rightCardContainer = new JPanel(rightCardLayout);
+        rightCardContainer.setOpaque(false);
+
+        JPanel placeholderCard = new JPanel(new GridBagLayout());
+        placeholderCard.setBackground(Color.WHITE);
+        placeholderCard.setBorder(BorderFactory.createCompoundBorder(
+                new LineBorder(new Color(210, 220, 235), 1, true),
+                BorderFactory.createEmptyBorder(30, 24, 30, 24)
+        ));
+        placeholderCard.setPreferredSize(new Dimension(300, 400));
+        JLabel placeholderLabel = new JLabel("Select a reservation to view its details.");
+        placeholderLabel.setFont(new Font("Segoe UI", Font.ITALIC, 14));
+        placeholderLabel.setForeground(Color.GRAY);
+        placeholderCard.add(placeholderLabel);
+
         detailsCard = new JPanel(new GridBagLayout());
         detailsCard.setBackground(Color.WHITE);
         detailsCard.setBorder(BorderFactory.createCompoundBorder(
@@ -393,7 +411,9 @@ public class ReservationManagementPanel extends JPanel {
         detailTotalVal.setForeground(UIUtils.PRIMARY_COLOR);
         detailsCard.add(detailTotalVal, dcGbc);
 
-        rightPanel.add(detailsCard, BorderLayout.NORTH);
+        rightCardContainer.add(placeholderCard, "PLACEHOLDER");
+        rightCardContainer.add(detailsCard, "DETAILS");
+        rightPanel.add(rightCardContainer, BorderLayout.NORTH);
         splitPane.setRightComponent(rightPanel);
 
         add(splitPane, BorderLayout.CENTER);
@@ -621,6 +641,9 @@ public class ReservationManagementPanel extends JPanel {
         int selectedViewRow = table.getSelectedRow();
         if (selectedViewRow < 0) {
             clearDetailsCard();
+            if (rightCardLayout != null && rightCardContainer != null) {
+                rightCardLayout.show(rightCardContainer, "PLACEHOLDER");
+            }
             editButton.setEnabled(false);
             deleteButton.setEnabled(false);
             assignRoomButton.setEnabled(false);
@@ -630,6 +653,9 @@ public class ReservationManagementPanel extends JPanel {
         int modelRowIndex = (currentPage - 1) * PAGE_SIZE + selectedViewRow;
         if (modelRowIndex >= currentFilteredList.size()) {
             clearDetailsCard();
+            if (rightCardLayout != null && rightCardContainer != null) {
+                rightCardLayout.show(rightCardContainer, "PLACEHOLDER");
+            }
             editButton.setEnabled(false);
             deleteButton.setEnabled(false);
             assignRoomButton.setEnabled(false);
@@ -638,6 +664,9 @@ public class ReservationManagementPanel extends JPanel {
 
         Reservation reservation = currentFilteredList.get(modelRowIndex);
         populateDetailsCard(reservation);
+        if (rightCardLayout != null && rightCardContainer != null) {
+            rightCardLayout.show(rightCardContainer, "DETAILS");
+        }
 
         if (viewingArchived) {
             editButton.setEnabled(false); // Archived cannot be edited

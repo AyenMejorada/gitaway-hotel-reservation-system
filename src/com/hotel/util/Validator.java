@@ -23,10 +23,23 @@ public final class Validator {
     private Validator() {
     }
 
+    /**
+     * Method overloading example: same method name, different parameter list.
+     * Ensures that the field is not null, empty, or only whitespace.
+     */
     public static void requireNonBlank(String value, String fieldName) {
         if (value == null || value.trim().isEmpty()) {
             throw new ValidationException(fieldName + " is required.");
         }
+    }
+
+    /**
+     * Method overloading example: same method name, different parameter list.
+     * Ensures that the field is not blank and does not exceed a maximum length limit.
+     */
+    public static void requireNonBlank(String value, String fieldName, int maxLength) {
+        requireNonBlank(value, fieldName);
+        requireMaxLength(value, maxLength, fieldName);
     }
 
     public static void requireMaxLength(String value, int maxLength, String fieldName) {

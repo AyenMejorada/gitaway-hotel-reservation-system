@@ -120,8 +120,9 @@ public class GuestManagementPanel extends JPanel {
             }
         };
         UIUtils.styleTable(table);
+        table.getTableHeader().setReorderingAllowed(false);
         JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder(16, 0, 0, 0));
+        scrollPane.setBorder(new LineBorder(new Color(230, 233, 237), 1, true));
         add(scrollPane, BorderLayout.CENTER);
     }
 

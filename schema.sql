@@ -1,4 +1,5 @@
 -- ============================================================
+-- NOTE: This file is the single source of truth for the database. (hotel.sql is deprecated and has been renamed to hotel_DEPRECATED_DO_NOT_USE.sql.bak).
 -- Hotel Reservation System - Database Schema
 -- ============================================================
 -- Run this script in MySQL before starting the application:

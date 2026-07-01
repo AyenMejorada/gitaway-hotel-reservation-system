@@ -11,6 +11,10 @@ public interface BillingDao {
 
     void update(Billing billing);
 
+    /**
+     * Soft delete: marks record as inactive (is_deleted flag) instead of removing the row,
+     * to preserve referential integrity for historical reservations/billing records.
+     */
     void softDelete(int billId);
 
     void restore(int billId);

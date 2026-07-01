@@ -13,6 +13,10 @@ public interface ReservationDao {
 
     void update(Reservation reservation);
 
+    /**
+     * Soft delete: marks record as inactive (is_deleted flag) instead of removing the row,
+     * to preserve referential integrity for historical reservations/billing records.
+     */
     void softDelete(int reservationId);
 
     void restore(int reservationId);
